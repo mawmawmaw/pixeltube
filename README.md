@@ -47,24 +47,37 @@
 
 > Requires an interactive terminal (TTY) with truecolor support. Works best with iTerm2, kitty, WezTerm, Alacritty, or Ghostty. Falls back to 256-color on older terminals.
 
+## Install
+
+### Homebrew (recommended)
+
+```bash
+brew tap mawmawmaw/tap
+brew install pixeltube
+```
+
+### From source
+
+```bash
+git clone https://github.com/mawmawmaw/pixeltube.git
+cd pixeltube
+npm install
+```
+
 ## Quick Start
 
 ```bash
-# Clone and run
-git clone https://github.com/mawmawmaw/pixeltube.git
-cd pixeltube
-
 # Browse YouTube (default)
-node bin/pixeltube.js
+pixeltube
 
 # Play a local file
-node bin/pixeltube.js video.mp4
+pixeltube video.mp4
 
 # Play a YouTube URL
-node bin/pixeltube.js https://youtu.be/dQw4w9WgXcQ
+pixeltube https://youtu.be/dQw4w9WgXcQ
 
 # Play a playlist URL
-node bin/pixeltube.js 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
+pixeltube 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
 ```
 
 ## Commands

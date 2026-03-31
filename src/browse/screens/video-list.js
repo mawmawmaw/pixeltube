@@ -10,9 +10,15 @@ export async function showVideoList(browseState, headerPrefix, title, fetchFn, o
 	const spinner = startSpinner(`Loading ${title.toLowerCase()}`)
 	drawStatusBar(" Please wait...")
 
+	browseState.pushState({
+		title: () => `${headerPrefix} > ${title}`,
+		render: () => drawStatusBar(" Please wait..."),
+	})
+
 	try {
 		const videos = await fetchFn()
 		spinner.stop()
+		browseState.popState()
 		if (videos.length === 0) {
 			return browseState.flashMessage(`No ${title.toLowerCase()} found`)
 		}
@@ -31,6 +37,7 @@ export async function showVideoList(browseState, headerPrefix, title, fetchFn, o
 		})
 	} catch (err) {
 		spinner.stop()
+		browseState.popState()
 		browseState.flashMessage(`Error: ${err.message}`)
 	}
 }
@@ -47,9 +54,15 @@ export async function showPlaylistList(
 	const spinner = startSpinner("Loading playlists")
 	drawStatusBar(" Please wait...")
 
+	browseState.pushState({
+		title: () => `${headerPrefix} > Playlists`,
+		render: () => drawStatusBar(" Please wait..."),
+	})
+
 	try {
 		const playlists = await fetchPlaylists()
 		spinner.stop()
+		browseState.popState()
 		if (playlists.length === 0) {
 			return browseState.flashMessage("No playlists found")
 		}
@@ -87,6 +100,7 @@ export async function showPlaylistList(
 		})()
 	} catch (err) {
 		spinner.stop()
+		browseState.popState()
 		browseState.flashMessage(`Error: ${err.message}`)
 	}
 }
@@ -97,9 +111,15 @@ export async function showPlaylistVideos(browseState, headerPrefix, playlist, fe
 	const spinner = startSpinner("Loading videos")
 	drawStatusBar(" Please wait...")
 
+	browseState.pushState({
+		title: () => `${headerPrefix} > Playlists > ${playlist.title}`,
+		render: () => drawStatusBar(" Please wait..."),
+	})
+
 	try {
 		const videos = await fetchPlaylistVideos(playlist.id)
 		spinner.stop()
+		browseState.popState()
 		if (videos.length === 0) {
 			return browseState.flashMessage("No videos found")
 		}
@@ -118,6 +138,7 @@ export async function showPlaylistVideos(browseState, headerPrefix, playlist, fe
 		})
 	} catch (err) {
 		spinner.stop()
+		browseState.popState()
 		browseState.flashMessage(`Error: ${err.message}`)
 	}
 }

@@ -56,6 +56,12 @@ brew tap mawmawmaw/tap
 brew install pixeltube
 ```
 
+### Update
+
+```bash
+brew update && brew upgrade pixeltube
+```
+
 ### From source
 
 ```bash

@@ -1,10 +1,17 @@
 // Shared screen for displaying video/playlist lists with loading states
 
+import type { BrowseState, Video, Playlist, ListView, PlaylistContext } from "../../types.js"
 import { drawTitleBar, startSpinner, drawStatusBar, clearContent } from "../../tui/screen.js"
 import { createListView } from "../../tui/list-view.js"
 import { formatVideoItem, formatPlaylistItem } from "../format.js"
 
-export async function showVideoList(browseState, headerPrefix, title, fetchFn, onSelect) {
+export async function showVideoList(
+	browseState: BrowseState,
+	headerPrefix: string,
+	title: string,
+	fetchFn: () => Promise<Video[]>,
+	onSelect: (video: Video, playlist: PlaylistContext) => void,
+): Promise<void> {
 	clearContent()
 	drawTitleBar(`${headerPrefix} > ${title}`)
 	const spinner = startSpinner(`Loading ${title.toLowerCase()}`)
@@ -26,7 +33,7 @@ export async function showVideoList(browseState, headerPrefix, title, fetchFn, o
 		const listView = createListView({
 			items: videos,
 			formatItem: formatVideoItem,
-			onSelect: (video, idx) => onSelect(video, { videos, index: idx }),
+			onSelect: (video: Video, idx: number) => onSelect(video, { videos, index: idx }),
 			onBack: () => browseState.popState(),
 			spacing: 1,
 		})
@@ -38,17 +45,17 @@ export async function showVideoList(browseState, headerPrefix, title, fetchFn, o
 	} catch (err) {
 		spinner.stop()
 		browseState.popState()
-		browseState.flashMessage(`Error: ${err.message}`)
+		browseState.flashMessage(`Error: ${(err as Error).message}`)
 	}
 }
 
 export async function showPlaylistList(
-	browseState,
-	headerPrefix,
-	fetchPlaylists,
-	fetchPlaylistCount,
-	onSelectPlaylist,
-) {
+	browseState: BrowseState,
+	headerPrefix: string,
+	fetchPlaylists: () => Promise<Playlist[]>,
+	fetchPlaylistCount: (id: string) => Promise<number | null>,
+	onSelectPlaylist: (playlist: Playlist) => void,
+): Promise<void> {
 	clearContent()
 	drawTitleBar(`${headerPrefix} > Playlists`)
 	const spinner = startSpinner("Loading playlists")
@@ -67,10 +74,10 @@ export async function showPlaylistList(
 			return browseState.flashMessage("No playlists found")
 		}
 
-		const listView = createListView({
+		const listView: ListView = createListView({
 			items: playlists,
 			formatItem: formatPlaylistItem,
-			onSelect: (playlist) => onSelectPlaylist(playlist),
+			onSelect: (playlist: Playlist) => onSelectPlaylist(playlist),
 			onBack: () => browseState.popState(),
 			spacing: 1,
 		})
@@ -101,11 +108,17 @@ export async function showPlaylistList(
 	} catch (err) {
 		spinner.stop()
 		browseState.popState()
-		browseState.flashMessage(`Error: ${err.message}`)
+		browseState.flashMessage(`Error: ${(err as Error).message}`)
 	}
 }
 
-export async function showPlaylistVideos(browseState, headerPrefix, playlist, fetchPlaylistVideos, onSelect) {
+export async function showPlaylistVideos(
+	browseState: BrowseState,
+	headerPrefix: string,
+	playlist: Playlist,
+	fetchPlaylistVideos: (id: string) => Promise<Video[]>,
+	onSelect: (video: Video, context: PlaylistContext) => void,
+): Promise<void> {
 	clearContent()
 	drawTitleBar(`${headerPrefix} > Playlists > ${playlist.title}`)
 	const spinner = startSpinner("Loading videos")
@@ -127,7 +140,7 @@ export async function showPlaylistVideos(browseState, headerPrefix, playlist, fe
 		const listView = createListView({
 			items: videos,
 			formatItem: formatVideoItem,
-			onSelect: (video, idx) => onSelect(video, { videos, index: idx }),
+			onSelect: (video: Video, idx: number) => onSelect(video, { videos, index: idx }),
 			onBack: () => browseState.popState(),
 			spacing: 1,
 		})
@@ -139,6 +152,6 @@ export async function showPlaylistVideos(browseState, headerPrefix, playlist, fe
 	} catch (err) {
 		spinner.stop()
 		browseState.popState()
-		browseState.flashMessage(`Error: ${err.message}`)
+		browseState.flashMessage(`Error: ${(err as Error).message}`)
 	}
 }

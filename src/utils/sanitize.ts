@@ -1,5 +1,5 @@
 // Strip ANSI escapes and control chars from untrusted text (video titles, etc.)
-export function sanitize(str) {
+export function sanitize(str: string): string {
 	if (!str) return ""
 	return str
 		.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "") // ANSI escape sequences

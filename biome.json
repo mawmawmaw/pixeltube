@@ -11,6 +11,6 @@
 		}
 	},
 	"files": {
-		"includes": ["src/**/*.js", "bin/**/*.js", "test/**/*.js"]
+		"includes": ["src/**/*.ts", "bin/**/*.ts", "test/**/*.ts"]
 	}
 }

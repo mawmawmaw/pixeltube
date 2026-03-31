@@ -1,14 +1,16 @@
+import type { Theme } from "../types.js"
+
 const env = process.env
 
 // Theme detection and color system — dark/light, truecolor/256-color fallback
 
-export const truecolor = env.COLORTERM === "truecolor" || env.COLORTERM === "24bit"
-export const color256 = !truecolor && (env.TERM || "").includes("256color")
-export const basicColor = !truecolor && !color256
-export const altScreen = env.TERM !== "dumb"
-export const syncOutput = /iterm|kitty|wezterm|alacritty|ghostty/i.test(env.TERM_PROGRAM || "")
+export const truecolor: boolean = env.COLORTERM === "truecolor" || env.COLORTERM === "24bit"
+export const color256: boolean = !truecolor && (env.TERM || "").includes("256color")
+export const basicColor: boolean = !truecolor && !color256
+export const altScreen: boolean = env.TERM !== "dumb"
+export const syncOutput: boolean = /iterm|kitty|wezterm|alacritty|ghostty/i.test(env.TERM_PROGRAM || "")
 
-function detectDarkTheme() {
+function detectDarkTheme(): boolean {
 	const cfg = env.COLORFGBG
 	if (cfg) {
 		const parts = cfg.split(";")
@@ -17,9 +19,9 @@ function detectDarkTheme() {
 	}
 	return true // default dark
 }
-export const isDark = detectDarkTheme()
+export const isDark: boolean = detectDarkTheme()
 
-function rgb(r, g, b) {
+function rgb(r: number, g: number, b: number): string {
 	if (truecolor) return `\x1b[38;2;${r};${g};${b}m`
 	// 256-color: map to 6x6x6 color cube (indices 16-231)
 	const ri = Math.round((r / 255) * 5)
@@ -28,7 +30,7 @@ function rgb(r, g, b) {
 	return `\x1b[38;5;${16 + ri * 36 + gi * 6 + bi}m`
 }
 
-function rgbBg(r, g, b) {
+function rgbBg(r: number, g: number, b: number): string {
 	if (truecolor) return `\x1b[48;2;${r};${g};${b}m`
 	const ri = Math.round((r / 255) * 5)
 	const gi = Math.round((g / 255) * 5)
@@ -36,7 +38,7 @@ function rgbBg(r, g, b) {
 	return `\x1b[48;5;${16 + ri * 36 + gi * 6 + bi}m`
 }
 
-export function fgRgb(r, g, b) {
+export function fgRgb(r: number, g: number, b: number): string {
 	if (truecolor) return `\x1b[38;2;${r};${g};${b}m`
 	const ri = Math.round((r / 255) * 5)
 	const gi = Math.round((g / 255) * 5)
@@ -44,7 +46,7 @@ export function fgRgb(r, g, b) {
 	return `\x1b[38;5;${16 + ri * 36 + gi * 6 + bi}m`
 }
 
-export function bgRgb(r, g, b) {
+export function bgRgb(r: number, g: number, b: number): string {
 	if (truecolor) return `\x1b[48;2;${r};${g};${b}m`
 	const ri = Math.round((r / 255) * 5)
 	const gi = Math.round((g / 255) * 5)
@@ -52,10 +54,10 @@ export function bgRgb(r, g, b) {
 	return `\x1b[48;5;${16 + ri * 36 + gi * 6 + bi}m`
 }
 
-const BOLD = "\x1b[1m"
-const RESET = "\x1b[0m"
+const BOLD: string = "\x1b[1m"
+const RESET: string = "\x1b[0m"
 
-export const theme = isDark
+export const theme: Theme = isDark
 	? {
 			accent: "\x1b[93m", // bright yellow
 			accentBold: `${BOLD}\x1b[93m`, // bold bright yellow

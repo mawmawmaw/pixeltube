@@ -1,12 +1,13 @@
 // CLI argument parsing and validation (no dependencies)
 
 import { existsSync } from "node:fs"
+import type { CliOptions, ParsedArgs } from "../types.js"
 
-export function parseArgs(argv) {
+export function parseArgs(argv: string[]): ParsedArgs {
 	const args = argv.slice(2)
-	let input = null
-	let subcommand = null
-	const options = {
+	let input: string | null = null
+	let subcommand: string | null = null
+	const options: CliOptions = {
 		fps: null,
 		width: null,
 		scale: 1.0,
@@ -43,7 +44,7 @@ export function parseArgs(argv) {
 	return { subcommand, input, options }
 }
 
-function parseCookies(args, options) {
+function parseCookies(args: string[], options: CliOptions): CliOptions {
 	const idx = args.indexOf("--cookies")
 	if (idx !== -1 && args[idx + 1]) {
 		options.cookies = args[idx + 1]
@@ -51,15 +52,15 @@ function parseCookies(args, options) {
 	return options
 }
 
-export function cookieArgsFromOptions(options) {
+export function cookieArgsFromOptions(options: CliOptions): string[] {
 	if (options.cookies) {
 		return ["--cookies", options.cookies]
 	}
 	return ["--cookies-from-browser", "chrome"]
 }
 
-export function validateOptions(options) {
-	const errors = []
+export function validateOptions(options: CliOptions): string[] {
+	const errors: string[] = []
 	if (options.cookies && !existsSync(options.cookies)) {
 		errors.push(`Cookies file not found: ${options.cookies}`)
 	}

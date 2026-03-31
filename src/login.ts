@@ -1,6 +1,8 @@
 // YouTube authentication check via yt-dlp cookies
 
-export async function isLoggedIn(client) {
+import type { YtDlpClient } from "./types.js"
+
+export async function isLoggedIn(client: YtDlpClient): Promise<boolean> {
 	try {
 		const result = await client.run(
 			["--flat-playlist", "--playlist-end", "1", "--print", "%(title)s", "https://www.youtube.com/feed/subscriptions"],
@@ -12,8 +14,8 @@ export async function isLoggedIn(client) {
 	}
 }
 
-export async function verifyLogin(client, cookieArgs) {
-	const usingFile = cookieArgs[0] === "--cookies"
+export async function verifyLogin(client: YtDlpClient, cookieArgs: string[]): Promise<boolean> {
+	const usingFile: boolean = cookieArgs[0] === "--cookies"
 	if (usingFile) {
 		console.log(`Checking YouTube authentication via cookies file: ${cookieArgs[1]}\n`)
 	} else {
@@ -48,7 +50,7 @@ export async function verifyLogin(client, cookieArgs) {
 			console.error("  2. Chrome is fully closed (yt-dlp needs to read the cookie database)")
 			console.error("  3. yt-dlp is up to date: brew upgrade yt-dlp")
 		}
-		console.error("\nError:", err.message)
+		console.error("\nError:", (err as Error).message)
 		process.exit(1)
 	}
 }

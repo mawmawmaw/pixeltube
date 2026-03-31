@@ -1,19 +1,20 @@
 // Browse navigation state — stack-based screen management
 
+import type { BrowseState, BrowseScreenState, BrowseSelection } from "../types.js"
 import { enterRawMode, exitRawMode, onKey } from "../tui/terminal.js"
 import { drawTitleBar, drawStatusBar, clearContent, startSpinner } from "../tui/screen.js"
 
-export function createBrowseState() {
-	const stateStack = []
-	let removeKeyHandler = null
-	let resolvePromise = null
-	let keyHandler = null
+export function createBrowseState(): BrowseState {
+	const stateStack: BrowseScreenState[] = []
+	let removeKeyHandler: (() => void) | null = null
+	let resolvePromise: ((value: BrowseSelection | null) => void) | null = null
+	let keyHandler: ((key: string) => void) | null = null
 
-	function currentState() {
+	function currentState(): BrowseScreenState | undefined {
 		return stateStack[stateStack.length - 1]
 	}
 
-	function renderCurrent() {
+	function renderCurrent(): void {
 		const state = currentState()
 		if (!state) return
 		clearContent()
@@ -26,56 +27,56 @@ export function createBrowseState() {
 		}
 	}
 
-	function popState() {
+	function popState(): void {
 		stateStack.pop()
 		if (stateStack.length === 0) return result(null)
 		renderCurrent()
 	}
 
-	function pushState(state) {
+	function pushState(state: BrowseScreenState): void {
 		stateStack.push(state)
 		renderCurrent()
 	}
 
-	function result(value) {
+	function result(value: BrowseSelection | null): void {
 		if (removeKeyHandler) removeKeyHandler()
-		resolvePromise(value)
+		resolvePromise!(value)
 	}
 
-	async function flashMessage(msg, ms = 2000) {
+	async function flashMessage(msg: string, ms = 2000): Promise<void> {
 		clearContent()
 		const s = startSpinner(msg)
-		await new Promise((r) => setTimeout(r, ms))
+		await new Promise<void>((r) => setTimeout(r, ms))
 		s.stop()
 		popState()
 	}
 
-	function setKeyHandler(handler) {
+	function setKeyHandler(handler: (key: string) => void): void {
 		keyHandler = handler
 	}
 
-	function start() {
+	function start(): Promise<BrowseSelection | null> {
 		return new Promise((resolve) => {
 			resolvePromise = resolve
-			removeKeyHandler = onKey((key) => {
+			removeKeyHandler = onKey((key: string) => {
 				if (keyHandler) keyHandler(key)
 			})
 		})
 	}
 
-	function resume(resizeHandler) {
+	function resume(resizeHandler?: () => void): Promise<BrowseSelection | null> {
 		enterRawMode()
 		if (resizeHandler) process.stdout.on("resize", resizeHandler)
 		renderCurrent()
 		return new Promise((resolve) => {
 			resolvePromise = resolve
-			removeKeyHandler = onKey((key) => {
+			removeKeyHandler = onKey((key: string) => {
 				if (keyHandler) keyHandler(key)
 			})
 		})
 	}
 
-	function exitForPlayback(resizeHandler) {
+	function exitForPlayback(resizeHandler?: () => void): void {
 		if (removeKeyHandler) removeKeyHandler()
 		if (resizeHandler) process.stdout.removeListener("resize", resizeHandler)
 		exitRawMode()

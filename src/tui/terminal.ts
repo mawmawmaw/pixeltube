@@ -2,7 +2,7 @@
 
 import { altScreen, syncOutput } from "./theme.js"
 
-export function checkTTY() {
+export function checkTTY(): void {
 	if (!process.stdout.isTTY) {
 		console.error("PixelTube requires an interactive terminal (TTY).")
 		console.error("Pipe and redirect are not supported.")
@@ -10,7 +10,7 @@ export function checkTTY() {
 	}
 }
 
-export function enterRawMode() {
+export function enterRawMode(): void {
 	if (!process.stdin.isTTY) return
 	process.stdin.setRawMode(true)
 	process.stdin.resume()
@@ -20,51 +20,51 @@ export function enterRawMode() {
 	clearScreen()
 }
 
-export function exitRawMode() {
+export function exitRawMode(): void {
 	showCursor()
 	exitAltScreen()
 	if (process.stdin.isTTY) process.stdin.setRawMode(false)
 	process.stdin.pause()
 }
 
-export function enterAltScreen() {
+export function enterAltScreen(): void {
 	if (altScreen) process.stdout.write("\x1b[?1049h")
 }
 
-export function exitAltScreen() {
+export function exitAltScreen(): void {
 	if (altScreen) process.stdout.write("\x1b[?1049l")
 }
 
-export function showCursor() {
+export function showCursor(): void {
 	process.stdout.write("\x1b[?25h")
 }
 
-export function hideCursor() {
+export function hideCursor(): void {
 	process.stdout.write("\x1b[?25l")
 }
 
-export function clearScreen() {
+export function clearScreen(): void {
 	process.stdout.write("\x1b[2J")
 }
 
-export function resetStyle() {
+export function resetStyle(): void {
 	process.stdout.write("\x1b[0m")
 }
 
-export function clearLineAt(row) {
+export function clearLineAt(row: number): void {
 	moveTo(row, 1)
 	process.stdout.write("\x1b[2K")
 }
 
-export function syncStart() {
+export function syncStart(): void {
 	if (syncOutput) process.stdout.write("\x1b[?2026h")
 }
 
-export function syncEnd() {
+export function syncEnd(): void {
 	if (syncOutput) process.stdout.write("\x1b[?2026l")
 }
 
-export function parseKey(data) {
+export function parseKey(data: string): string | null {
 	if (data === "\x03") return "ctrl-c"
 	if (data === "\x1b" || data === "\x1b\x1b") return "escape"
 	if (data === "\r") return "enter"
@@ -78,8 +78,8 @@ export function parseKey(data) {
 	return null
 }
 
-export function onKey(callback) {
-	const handler = (data) => {
+export function onKey(callback: (key: string) => void): () => void {
+	const handler = (data: string): void => {
 		const key = parseKey(data)
 		if (key) callback(key)
 	}
@@ -87,25 +87,25 @@ export function onKey(callback) {
 	return () => process.stdin.removeListener("data", handler)
 }
 
-export function moveTo(row, col) {
+export function moveTo(row: number, col: number): void {
 	process.stdout.write(`\x1b[${row};${col}H`)
 }
 
-export const clearLine = clearLineAt
+export const clearLine: (row: number) => void = clearLineAt
 
-export function setTitle(title) {
+export function setTitle(title: string): void {
 	process.stdout.write(`\x1b]0;${title}\x07`)
 }
 
-export function cols() {
+export function cols(): number {
 	return process.stdout.columns || 80
 }
 
-export function rows() {
+export function rows(): number {
 	return process.stdout.rows || 24
 }
 
-export function emergencyRestore() {
+export function emergencyRestore(): void {
 	try {
 		resetStyle()
 		showCursor()

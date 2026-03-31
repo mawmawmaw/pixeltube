@@ -1,5 +1,6 @@
 // Search screen with text input, filters, and result display
 
+import type { BrowseState, Video, PlaylistContext, SearchFilters } from "../../types.js"
 import { moveTo, clearLine, cols, rows, showCursor, hideCursor } from "../../tui/terminal.js"
 import { drawTitleBar, startSpinner, drawStatusBar, clearContent } from "../../tui/screen.js"
 import { createListView } from "../../tui/list-view.js"
@@ -11,18 +12,22 @@ const DIM = theme.dim
 const BOLD = theme.bold
 const RESET = theme.reset
 
-const FILTER_OPTIONS = {
+const FILTER_OPTIONS: Record<string, string[]> = {
 	sort: ["relevance", "date", "views", "rating"],
 	duration: ["any", "short", "medium", "long"],
 }
 
-export function createSearchScreen(browseState, headerPrefix, onSelectVideo) {
+export function createSearchScreen(
+	browseState: BrowseState,
+	headerPrefix: () => string,
+	onSelectVideo: (video: Video, context: PlaylistContext) => void,
+) {
 	let searchBuffer = ""
 	let filterMode = false
 	let filterField = 0
-	let searchFilters = { sort: "relevance", duration: "any" }
+	let searchFilters: Record<string, string> = { sort: "relevance", duration: "any" }
 
-	function show() {
+	function show(): void {
 		searchBuffer = ""
 		filterMode = false
 
@@ -35,7 +40,7 @@ export function createSearchScreen(browseState, headerPrefix, onSelectVideo) {
 		renderInput()
 	}
 
-	function renderInput() {
+	function renderInput(): void {
 		const r = Math.floor(rows() / 2)
 		const w = cols()
 		clearLine(r - 2)
@@ -68,14 +73,14 @@ export function createSearchScreen(browseState, headerPrefix, onSelectVideo) {
 		moveTo(r, 11 + searchBuffer.length)
 	}
 
-	async function executeSearch(query) {
+	async function executeSearch(query: string): Promise<void> {
 		hideCursor()
 		clearContent()
 		drawTitleBar(`${headerPrefix()} > Search > "${query}"`)
 		const spinner = startSpinner("Searching")
 		drawStatusBar(" Please wait...")
 
-		const filters =
+		const filters: SearchFilters | null =
 			searchFilters.sort !== "relevance" || searchFilters.duration !== "any"
 				? {
 						sort: searchFilters.sort === "relevance" ? null : searchFilters.sort,
@@ -93,7 +98,7 @@ export function createSearchScreen(browseState, headerPrefix, onSelectVideo) {
 			const listView = createListView({
 				items: videos,
 				formatItem: formatVideoItem,
-				onSelect: (video, idx) => onSelectVideo(video, { videos, index: idx }),
+				onSelect: (video: Video, idx: number) => onSelectVideo(video, { videos, index: idx }),
 				onBack: () => browseState.popState(),
 				spacing: 1,
 			})
@@ -104,11 +109,11 @@ export function createSearchScreen(browseState, headerPrefix, onSelectVideo) {
 			})
 		} catch (err) {
 			spinner.stop()
-			browseState.flashMessage(`Error: ${err.message}`)
+			browseState.flashMessage(`Error: ${(err as Error).message}`)
 		}
 	}
 
-	function handleKey(key) {
+	function handleKey(key: string): void {
 		if (filterMode) {
 			const fields = ["sort", "duration"]
 			const field = fields[filterField]

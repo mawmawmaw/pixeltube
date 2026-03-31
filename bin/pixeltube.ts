@@ -17,7 +17,7 @@ process.on("uncaughtException", (err) => {
 })
 process.on("unhandledRejection", (err) => {
 	emergencyRestore()
-	console.error("Unexpected error:", err?.message || err)
+	console.error("Unexpected error:", (err as Error)?.message || err)
 	process.exit(1)
 })
 
@@ -61,7 +61,7 @@ if (!isURL && !existsSync(input)) {
 	process.exit(1)
 }
 
-const termWidth = options.width || Math.floor(process.stdout.columns * options.scale)
+const termWidth = options.width || Math.floor((process.stdout.columns || 80) * options.scale)
 const playOptions = { ...options, width: termWidth }
 
 if (isURL) {

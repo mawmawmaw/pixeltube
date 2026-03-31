@@ -1,35 +1,48 @@
 // Scrollable list widget with selection highlighting and keyboard navigation
 
+import type { ListView } from "../types.js"
 import { moveTo, cols, syncStart, syncEnd } from "./terminal.js"
 import { contentRows } from "./screen.js"
 import { theme } from "./theme.js"
 
-function visLen(str) {
+function visLen(str: string): number {
 	return str.replace(/\x1b\[[0-9;]*m/g, "").length
 }
 
-export function createListView({ items = [], formatItem, onSelect, onBack, spacing = 0 }) {
-	let selectedIndex = 0
-	let scrollOffset = 0
-	let currentItems = items
+export function createListView({
+	items = [],
+	formatItem,
+	onSelect,
+	onBack,
+	spacing = 0,
+}: {
+	items?: any[]
+	formatItem?: (item: any, width: number) => string
+	onSelect?: (item: any, index: number) => void
+	onBack?: () => void
+	spacing?: number
+}): ListView {
+	let selectedIndex: number = 0
+	let scrollOffset: number = 0
+	let currentItems: any[] = items
 
-	function lineHeight() {
+	function lineHeight(): number {
 		const r = contentRows()
 		return 1 + (r < 20 ? 0 : spacing)
 	}
 
-	function visibleItems() {
+	function visibleItems(): number {
 		return Math.floor(contentRows() / lineHeight())
 	}
 
-	function clampScroll() {
+	function clampScroll(): void {
 		const vis = visibleItems()
 		if (selectedIndex < scrollOffset) scrollOffset = selectedIndex
 		if (selectedIndex >= scrollOffset + vis) scrollOffset = selectedIndex - vis + 1
 		if (scrollOffset < 0) scrollOffset = 0
 	}
 
-	function render() {
+	function render(): void {
 		const w = cols()
 		const vis = visibleItems()
 		clampScroll()
@@ -76,7 +89,7 @@ export function createListView({ items = [], formatItem, onSelect, onBack, spaci
 		syncEnd()
 	}
 
-	function handleKey(key) {
+	function handleKey(key: string): void {
 		if (key === "up") {
 			if (selectedIndex > 0) selectedIndex--
 			render()
@@ -92,7 +105,7 @@ export function createListView({ items = [], formatItem, onSelect, onBack, spaci
 		}
 	}
 
-	function setItems(newItems) {
+	function setItems(newItems: any[]): void {
 		currentItems = newItems
 		selectedIndex = 0
 		scrollOffset = 0

@@ -1,5 +1,6 @@
 // Video playback loop — frame timing, controls, subtitle overlay
 
+import type { Decoder, ExitReason, PlayOptions, Subtitle } from "./types.js"
 import { renderFrame, resetRenderer } from "./renderer.js"
 import { createDecoder, computeDimensions } from "./decoder.js"
 import { enterAltScreen, exitAltScreen, hideCursor, showCursor, clearScreen, resetStyle } from "./tui/terminal.js"
@@ -7,20 +8,25 @@ import { findSub } from "./utils/srt.js"
 import { drawChrome } from "./player/chrome.js"
 import { downloadSubs } from "./player/subs.js"
 
-function setupTerminal() {
+function setupTerminal(): void {
 	enterAltScreen()
 	hideCursor()
 	clearScreen()
 }
 
-function restoreTerminal() {
+function restoreTerminal(): void {
 	resetStyle()
 	showCursor()
 	exitAltScreen()
 }
 
-// Returns: 'done', 'back', 'quit', 'next', 'prev'
-export async function play(decoder, width, height, fps, { info = {}, duration = 0, playlist = null } = {}) {
+export async function play(
+	decoder: Decoder,
+	width: number,
+	height: number,
+	fps: number,
+	{ info = {}, duration = 0, playlist = null }: PlayOptions = {},
+): Promise<ExitReason> {
 	setupTerminal()
 	resetRenderer()
 
@@ -29,22 +35,23 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 	process.stdin.resume()
 	process.stdin.setEncoding("utf8")
 
-	let exitReason = "done"
-	let pendingAction = null
+	let exitReason: ExitReason = "done"
+	let pendingAction: string | null = null
 	let isPaused = false
 	let isMuted = false
 	let showSubs = false
 
-	const keyHandler = (data) => {
-		if (data === "\x1b" || data === "\x1b[D") pendingAction = "back"
-		else if (data === "\x03" || data === "q") pendingAction = "quit"
-		else if (data === " ") pendingAction = "toggle-pause"
-		else if (data === "r") pendingAction = "rewind"
-		else if (data === "f") pendingAction = "forward"
-		else if (data === "n") pendingAction = "next"
-		else if (data === "p") pendingAction = "prev"
-		else if (data === "m") pendingAction = "toggle-mute"
-		else if (data === "s") pendingAction = "toggle-subs"
+	const keyHandler = (data: string | Buffer) => {
+		const str = String(data)
+		if (str === "\x1b" || str === "\x1b[D") pendingAction = "back"
+		else if (str === "\x03" || str === "q") pendingAction = "quit"
+		else if (str === " ") pendingAction = "toggle-pause"
+		else if (str === "r") pendingAction = "rewind"
+		else if (str === "f") pendingAction = "forward"
+		else if (str === "n") pendingAction = "next"
+		else if (str === "p") pendingAction = "prev"
+		else if (str === "m") pendingAction = "toggle-mute"
+		else if (str === "s") pendingAction = "toggle-subs"
 	}
 	process.stdin.on("data", keyHandler)
 
@@ -84,8 +91,8 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 	const nextTitle =
 		playlist && playlist.index < playlist.videos.length - 1 ? playlist.videos[playlist.index + 1].title : null
 
-	let subs = []
-	let currentSub = null
+	let subs: Subtitle[] = []
+	let currentSub: string | null = null
 	if (info.videoUrl) {
 		downloadSubs(info.videoUrl)
 			.then((result) => {
@@ -94,7 +101,7 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 			.catch(() => {})
 	}
 
-	function updateChrome() {
+	function updateChrome(): void {
 		drawChrome(
 			videoRows,
 			width,
@@ -222,7 +229,7 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 		}
 
 		if (isPaused) {
-			await new Promise((r) => setTimeout(r, 50))
+			await new Promise<void>((r) => setTimeout(r, 50))
 			continue
 		}
 
@@ -248,7 +255,7 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 		const flushed = process.stdout.write(rendered)
 		if (!flushed) {
 			// stdout buffer full — wait for drain before continuing
-			await new Promise((r) => process.stdout.once("drain", r))
+			await new Promise<void>((r) => process.stdout.once("drain", r))
 		}
 
 		currentTime = seekBase + (Date.now() - playbackStartedAt) / 1000
@@ -266,7 +273,7 @@ export async function play(decoder, width, height, fps, { info = {}, duration = 
 		nextFrameTime += frameDuration
 		const sleepMs = nextFrameTime - Date.now()
 		if (sleepMs > 0) {
-			await new Promise((r) => setTimeout(r, sleepMs))
+			await new Promise<void>((r) => setTimeout(r, sleepMs))
 		}
 	}
 

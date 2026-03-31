@@ -1,5 +1,6 @@
 // Main menu screen with responsive ASCII logo and menu items
 
+import type { BrowseState, BrowseScreenState } from "../../types.js"
 import { moveTo, cols, rows, syncStart, syncEnd } from "../../tui/terminal.js"
 import { contentRows } from "../../tui/screen.js"
 import { theme } from "../../tui/theme.js"
@@ -8,7 +9,18 @@ const DIM = theme.dim
 const BOLD = theme.bold
 const RESET = theme.reset
 
-const MENU_ITEMS = [
+interface MenuItem {
+	label: string
+	desc: string
+	action: string
+}
+
+interface MenuScreenState extends BrowseScreenState {
+	selectedIdx: number
+	_menuItems?: MenuItem[]
+}
+
+const MENU_ITEMS: MenuItem[] = [
 	{ label: "Recommendations", desc: "Videos picked for you", action: "recommendations" },
 	{ label: "Subscriptions", desc: "Recent from your channels", action: "subscriptions" },
 	{ label: "Playlists", desc: "Your saved playlists", action: "playlists" },
@@ -45,7 +57,7 @@ const MEDIUM_LOGO = [
 
 const SMALL_LOGO = [`  ▘    ▜ ▗   ▌   `, `▛▌▌▚▘█▌▐ ▜▘▌▌▛▌█▌`, `▙▌▌▞▖▙▖▐▖▐▖▙▌▙▌▙▖`, `▌                `]
 
-function getLayout(r, w) {
+function getLayout(r: number, w: number): { logo: string; spacing: number } {
 	const totalRows = r + 2
 	if (totalRows >= 25 && w >= 85) return { logo: "large", spacing: 1 }
 	if (totalRows >= 21 && w >= 85) return { logo: "large", spacing: 0 }
@@ -54,7 +66,7 @@ function getLayout(r, w) {
 	return { logo: "text", spacing: 0 }
 }
 
-function drawLogo(logoLines, logoWidth, r, w, menuLines) {
+function drawLogo(logoLines: string[], logoWidth: number, r: number, w: number, menuLines: number): number {
 	const logoStart = Math.max(2, Math.floor((r - logoLines.length - 1 - menuLines) / 2) + 1)
 	for (let i = 0; i < logoLines.length; i++) {
 		moveTo(logoStart + i, Math.max(1, Math.floor((w - logoWidth) / 2)))
@@ -63,28 +75,32 @@ function drawLogo(logoLines, logoWidth, r, w, menuLines) {
 	return logoStart + logoLines.length + 1
 }
 
-export function createMainMenu(browseState, accountName, onAction) {
-	function show() {
+export function createMainMenu(
+	browseState: BrowseState,
+	accountName: string | null,
+	onAction: (action: string) => void,
+) {
+	function show(): void {
 		browseState.pushState({
 			title: () => (accountName ? `PixelTube [${accountName}]` : "PixelTube"),
 			statusHint: " arrows: navigate | enter/right: select | q: quit",
 			listView: null,
 			render: draw,
 			selectedIdx: 0,
-		})
+		} as MenuScreenState)
 	}
 
-	function draw() {
+	function draw(): void {
 		const w = cols()
 		const r = contentRows()
-		const state = browseState.currentState()
+		const state = browseState.currentState() as MenuScreenState
 		const items = MENU_ITEMS
 
 		syncStart()
 
 		const { logo: logoMode, spacing } = getLayout(r, w)
 		const menuLines = items.length * (spacing + 1)
-		let menuStart
+		let menuStart: number
 
 		if (logoMode === "large") {
 			menuStart = drawLogo(LARGE_LOGO, 83, r, w, menuLines)
@@ -135,8 +151,8 @@ export function createMainMenu(browseState, accountName, onAction) {
 		state._menuItems = items
 	}
 
-	function handleKey(key) {
-		const state = browseState.currentState()
+	function handleKey(key: string): void {
+		const state = browseState.currentState() as MenuScreenState
 		const items = state._menuItems || MENU_ITEMS
 		if (key === "up") {
 			if (state.selectedIdx > 0) state.selectedIdx--

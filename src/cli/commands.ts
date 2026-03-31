@@ -1,5 +1,6 @@
 // Command handlers for play, browse, login, and playlist URLs
 
+import type { YtDlpClient, VideoMeta, VideoInfo, ExitReason, PlayVideoOptions } from "../types.js"
 import { execFileSync } from "node:child_process"
 import { resolveInput } from "../resolve.js"
 import { probe } from "../probe.js"
@@ -7,7 +8,7 @@ import { computeDimensions, createDecoder } from "../decoder.js"
 import { play } from "../player.js"
 import { enterAltScreen, exitAltScreen, hideCursor, clearScreen } from "../tui/terminal.js"
 
-function checkFfmpeg() {
+function checkFfmpeg(): void {
 	try {
 		execFileSync("ffmpeg", ["-version"], { stdio: "ignore" })
 	} catch {
@@ -21,17 +22,17 @@ function checkFfmpeg() {
 	}
 }
 
-function showLoading() {
+function showLoading(): void {
 	enterAltScreen()
 	hideCursor()
 	clearScreen()
 }
 
-function hideLoading() {
+function hideLoading(): void {
 	exitAltScreen()
 }
 
-async function playVideo(url, opts = {}) {
+async function playVideo(url: string, opts: PlayVideoOptions = {}): Promise<ExitReason> {
 	showLoading()
 	const { startSpinner, drawTitleBar } = await import("../tui/screen.js")
 	drawTitleBar("PixelTube > Loading...")
@@ -43,9 +44,9 @@ async function playVideo(url, opts = {}) {
 		cleanup,
 	} = await resolveInput(url, {
 		download: opts.download || false,
-		onStatus: (msg) => spinner.update(msg),
+		onStatus: (msg: string) => spinner.update(msg),
 	})
-	const meta = remoteMeta || (await probe(streamUrl))
+	const meta: VideoMeta = remoteMeta || (await probe(streamUrl))
 	spinner.stop()
 	hideLoading()
 
@@ -55,7 +56,7 @@ async function playVideo(url, opts = {}) {
 
 	const audio = opts.audio !== false
 	const decoder = createDecoder(streamUrl, width, height, fps, { audio })
-	const info = opts.info || {}
+	const info: VideoInfo = opts.info || {}
 	if (!info.channel && meta.channel) info.channel = meta.channel
 	const duration = meta.duration || info.duration || 0
 	const playlist = opts.playlist || null
@@ -64,14 +65,14 @@ async function playVideo(url, opts = {}) {
 	return exitReason
 }
 
-export async function cmdLogin(ytdlp, cookieArgs) {
+export async function cmdLogin(ytdlp: YtDlpClient, cookieArgs: string[]): Promise<void> {
 	const { verifyLogin } = await import("../login.js")
 	await verifyLogin(ytdlp, cookieArgs)
 	console.log("\nLaunching browse...\n")
 	await cmdBrowse(ytdlp)
 }
 
-export async function cmdBrowse(ytdlp) {
+export async function cmdBrowse(ytdlp: YtDlpClient): Promise<void> {
 	checkFfmpeg()
 
 	const { setClient: setBrowseClient } = await import("../browse/data.js")
@@ -87,7 +88,7 @@ export async function cmdBrowse(ytdlp) {
 		let playlistIdx = playlist ? playlist.index : -1
 
 		while (true) {
-			let exitReason
+			let exitReason: ExitReason
 			try {
 				if (streamUrl && meta) {
 					const fps = meta.fps
@@ -109,7 +110,7 @@ export async function cmdBrowse(ytdlp) {
 					exitReason = await playVideo(url, { info })
 				}
 			} catch (err) {
-				console.warn(`Skipping video: ${err.message || "unavailable"}`)
+				console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
 				if (playlist && playlistIdx < playlist.videos.length - 1) {
 					exitReason = "next"
 				} else {
@@ -143,7 +144,7 @@ export async function cmdBrowse(ytdlp) {
 				const spinner = startSpinner(`Preparing "${nextVideo.title}"`)
 
 				try {
-					const resolved = await resolveInput(url, { onStatus: (msg) => spinner.update(msg) })
+					const resolved = await resolveInput(url, { onStatus: (msg: string) => spinner.update(msg) })
 					streamUrl = resolved.streamUrl
 					meta = resolved.meta || (await probe(streamUrl))
 					if (!info.channel && meta.channel) info.channel = meta.channel
@@ -153,7 +154,7 @@ export async function cmdBrowse(ytdlp) {
 				} catch (err) {
 					spinner.stop()
 					hideLoading()
-					console.warn(`Skipping video: ${err.message || "unavailable"}`)
+					console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
 					if (nextIdx < playlist.videos.length - 1) {
 						playlistIdx++
 						continue
@@ -170,7 +171,7 @@ export async function cmdBrowse(ytdlp) {
 	}
 }
 
-export async function cmdDefaultBrowse(ytdlp, cookieArgs) {
+export async function cmdDefaultBrowse(ytdlp: YtDlpClient, cookieArgs: string[]): Promise<void> {
 	checkFfmpeg()
 	const { isLoggedIn } = await import("../login.js")
 
@@ -191,7 +192,7 @@ export async function cmdDefaultBrowse(ytdlp, cookieArgs) {
 	await cmdBrowse(ytdlp)
 }
 
-export async function cmdPlayUrl(input, options) {
+export async function cmdPlayUrl(input: string, options: PlayVideoOptions): Promise<void> {
 	checkFfmpeg()
 
 	const isPlaylistUrl = input.includes("playlist?list=") || input.includes("&list=")
@@ -217,14 +218,14 @@ export async function cmdPlayUrl(input, options) {
 			while (playlistIdx < videos.length) {
 				const video = videos[playlistIdx]
 				const url = `https://www.youtube.com/watch?v=${video.id}`
-				const info = {
+				const info: VideoInfo = {
 					title: video.title,
 					channel: video.channel,
 					duration: Number(video.duration) || 0,
 					videoUrl: url,
 				}
 
-				let exitReason
+				let exitReason: ExitReason
 				try {
 					exitReason = await playVideo(url, {
 						info,
@@ -235,7 +236,7 @@ export async function cmdPlayUrl(input, options) {
 						playlist: { videos, index: playlistIdx },
 					})
 				} catch (err) {
-					console.warn(`Skipping video: ${err.message || "unavailable"}`)
+					console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
 					playlistIdx++
 					continue
 				}
@@ -248,7 +249,7 @@ export async function cmdPlayUrl(input, options) {
 		} catch (err) {
 			spinner.stop()
 			hideLoading()
-			console.error("Failed to load playlist:", err.message)
+			console.error("Failed to load playlist:", (err as Error).message)
 		}
 		return
 	}
@@ -261,7 +262,7 @@ export async function cmdPlayUrl(input, options) {
 	})
 }
 
-export async function cmdPlayFile(input, options) {
+export async function cmdPlayFile(input: string, options: PlayVideoOptions): Promise<void> {
 	checkFfmpeg()
 	await playVideo(input, {
 		fps: options.fps,

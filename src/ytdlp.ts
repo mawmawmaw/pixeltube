@@ -1,11 +1,17 @@
 // yt-dlp client factory — centralizes cookie args and process spawning
 
 import { execFile, spawn } from "node:child_process"
+import type { SpawnOptions } from "node:child_process"
+import type { YtDlpClient } from "./types.js"
 
-const MAX_BUFFER = 2 * 1024 * 1024
+const MAX_BUFFER: number = 2 * 1024 * 1024
 
-export function createClient({ cookieArgs = ["--cookies-from-browser", "chrome"] } = {}) {
-	function run(args, timeout = 60000) {
+export function createClient({
+	cookieArgs = ["--cookies-from-browser", "chrome"],
+}: {
+	cookieArgs?: string[]
+} = {}): YtDlpClient {
+	function run(args: string[], timeout: number = 60000): Promise<string> {
 		return new Promise((resolve, reject) => {
 			execFile(
 				"yt-dlp",
@@ -19,7 +25,7 @@ export function createClient({ cookieArgs = ["--cookies-from-browser", "chrome"]
 		})
 	}
 
-	function spawnProcess(args, options = {}) {
+	function spawnProcess(args: string[], options: SpawnOptions = {}) {
 		return spawn("yt-dlp", [...cookieArgs, "--no-warnings", ...args], options)
 	}
 

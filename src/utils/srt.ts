@@ -1,7 +1,9 @@
 // SRT subtitle parser and time-based lookup
 
-export function parseSrt(text) {
-	const subs = []
+import type { Subtitle } from "../types.js"
+
+export function parseSrt(text: string): Subtitle[] {
+	const subs: Subtitle[] = []
 	const blocks = text.split(/\n\n+/)
 	for (const block of blocks) {
 		const lines = block.trim().split("\n")
@@ -20,7 +22,7 @@ export function parseSrt(text) {
 	return subs
 }
 
-export function findSub(subs, time) {
+export function findSub(subs: Subtitle[], time: number): string | null {
 	for (const s of subs) {
 		if (time >= s.start && time <= s.end) return s.text
 	}

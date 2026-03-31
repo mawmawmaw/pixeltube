@@ -3,24 +3,31 @@
 import { fgRgb, bgRgb } from "./tui/theme.js"
 import { syncOutput } from "./tui/theme.js"
 
-const HALF_BLOCK = "▄"
-const ESC_SYNC_START = syncOutput ? "\x1b[?2026h" : ""
-const ESC_SYNC_END = syncOutput ? "\x1b[?2026l" : ""
-const ESC_RESET = "\x1b[0m"
+const HALF_BLOCK: string = "▄"
+const ESC_SYNC_START: string = syncOutput ? "\x1b[?2026h" : ""
+const ESC_SYNC_END: string = syncOutput ? "\x1b[?2026l" : ""
+const ESC_RESET: string = "\x1b[0m"
 
-let prevFrame = null
+let prevFrame: Buffer | null = null
 
-export function renderFrame(frameBuffer, width, height, offsetRow = 1, offsetCol = 1, skipRow = -1) {
-	const halfRows = height >> 1
-	const parts = [ESC_SYNC_START]
+export function renderFrame(
+	frameBuffer: Buffer,
+	width: number,
+	height: number,
+	offsetRow: number = 1,
+	offsetCol: number = 1,
+	skipRow: number = -1,
+): string {
+	const halfRows: number = height >> 1
+	const parts: string[] = [ESC_SYNC_START]
 
-	let prevBgR = -1,
-		prevBgG = -1,
-		prevBgB = -1
-	let prevFgR = -1,
-		prevFgG = -1,
-		prevFgB = -1
-	let needsMove = true
+	let prevBgR: number = -1,
+		prevBgG: number = -1,
+		prevBgB: number = -1
+	let prevFgR: number = -1,
+		prevFgG: number = -1,
+		prevFgB: number = -1
+	let needsMove: boolean = true
 
 	for (let row = 0; row < halfRows; row++) {
 		if (row === skipRow) {
@@ -28,19 +35,19 @@ export function renderFrame(frameBuffer, width, height, offsetRow = 1, offsetCol
 			continue
 		}
 
-		const y = row << 1
+		const y: number = row << 1
 		needsMove = true
 
 		for (let x = 0; x < width; x++) {
-			const topIdx = (y * width + x) * 3
-			const botIdx = topIdx + width * 3
+			const topIdx: number = (y * width + x) * 3
+			const botIdx: number = topIdx + width * 3
 
-			const bgR = frameBuffer[topIdx]
-			const bgG = frameBuffer[topIdx + 1]
-			const bgB = frameBuffer[topIdx + 2]
-			const fgR = frameBuffer[botIdx]
-			const fgG = frameBuffer[botIdx + 1]
-			const fgB = frameBuffer[botIdx + 2]
+			const bgR: number = frameBuffer[topIdx]
+			const bgG: number = frameBuffer[topIdx + 1]
+			const bgB: number = frameBuffer[topIdx + 2]
+			const fgR: number = frameBuffer[botIdx]
+			const fgG: number = frameBuffer[botIdx + 1]
+			const fgB: number = frameBuffer[botIdx + 2]
 
 			if (
 				prevFrame &&
@@ -91,6 +98,6 @@ export function renderFrame(frameBuffer, width, height, offsetRow = 1, offsetCol
 	return parts.join("")
 }
 
-export function resetRenderer() {
+export function resetRenderer(): void {
 	prevFrame = null
 }

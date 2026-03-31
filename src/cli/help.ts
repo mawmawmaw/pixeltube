@@ -1,6 +1,6 @@
 // Help and usage text output
 
-export function printHelp() {
+export function printHelp(): void {
 	console.log(`
   pixeltube — Play videos as colored pixel art in the terminal
 
@@ -62,7 +62,7 @@ export function printHelp() {
 `)
 }
 
-export function printUsage() {
+export function printUsage(): void {
 	console.log(`Usage: pixeltube <video-file-or-url> [options]
        pixeltube browse | login | help
 

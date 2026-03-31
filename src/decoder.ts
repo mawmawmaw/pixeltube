@@ -1,11 +1,17 @@
 // FFmpeg video decoder with ring buffer, frame pooling, and audio management
 
-import { spawn } from "node:child_process"
+import { spawn, type ChildProcess } from "node:child_process"
+import type { Decoder, DecoderOptions } from "./types.js"
 
 const MAX_QUEUED_FRAMES = 30
 const RESUME_THRESHOLD = 10
 
-export function computeDimensions(videoWidth, videoHeight, termCols, termRows) {
+export function computeDimensions(
+	videoWidth: number,
+	videoHeight: number,
+	termCols: number,
+	termRows: number,
+): { width: number; height: number } {
 	const compact = termCols < 60 || termRows < 18
 	// Compact: progress + title + controls = 3. Full: top border + progress + title + time + next + bottom border + controls = 7
 	const reserveRows = compact ? 3 : 7
@@ -29,9 +35,9 @@ export function computeDimensions(videoWidth, videoHeight, termCols, termRows) {
 	return { width: w, height: h }
 }
 
-function buildInputArgs(filePath, startTime) {
+function buildInputArgs(filePath: string, startTime: number): string[] {
 	const isRemote = /^https?:\/\//.test(filePath)
-	const args = []
+	const args: string[] = []
 	if (startTime > 0) args.push("-ss", String(startTime))
 	if (isRemote) {
 		args.push(
@@ -49,7 +55,7 @@ function buildInputArgs(filePath, startTime) {
 	return args
 }
 
-function spawnAudio(filePath, startTime) {
+function spawnAudio(filePath: string, startTime: number): ChildProcess | null {
 	const inputArgs = buildInputArgs(filePath, startTime)
 	try {
 		const proc = spawn("ffplay", [...inputArgs, "-nodisp", "-autoexit", "-vn", "-loglevel", "quiet"], {
@@ -62,11 +68,17 @@ function spawnAudio(filePath, startTime) {
 	}
 }
 
-export function createDecoder(filePath, width, height, fps, { audio = true, startTime = 0, startPaused = false } = {}) {
+export function createDecoder(
+	filePath: string,
+	width: number,
+	height: number,
+	fps: number,
+	{ audio = true, startTime = 0, startPaused = false }: DecoderOptions = {},
+): Decoder {
 	const frameSize = width * height * 3
 	const inputArgs = buildInputArgs(filePath, startTime)
 
-	let audioProc = audio && !startPaused ? spawnAudio(filePath, startTime) : null
+	let audioProc: ChildProcess | null = audio && !startPaused ? spawnAudio(filePath, startTime) : null
 
 	const ffmpeg = spawn(
 		"ffmpeg",
@@ -90,59 +102,59 @@ export function createDecoder(filePath, width, height, fps, { audio = true, star
 	)
 
 	let stderrBuf = ""
-	ffmpeg.stderr.on("data", (chunk) => {
+	ffmpeg.stderr!.on("data", (chunk: Buffer) => {
 		stderrBuf += chunk.toString()
 	})
 
 	const readBufSize = frameSize * 4
-	let readBuf = Buffer.allocUnsafe(readBufSize)
+	let readBuf: Buffer = Buffer.allocUnsafe(readBufSize)
 	let readOffset = 0 // start of unprocessed data
 	let writeOffset = 0 // end of unprocessed data
 
 	const ringCapacity = MAX_QUEUED_FRAMES + 10
-	const bufferPool = Array.from({ length: ringCapacity }, () => Buffer.allocUnsafe(frameSize))
+	const bufferPool: Buffer[] = Array.from({ length: ringCapacity }, () => Buffer.allocUnsafe(frameSize))
 
-	function acquireBuffer() {
+	function acquireBuffer(): Buffer {
 		return bufferPool[ringTail % ringCapacity]
 	}
 
-	const ring = Array.from({ length: ringCapacity })
-	let ringHead = 0
-	let ringTail = 0
-	let ringSize = 0
+	const ring: (Buffer | null)[] = Array.from({ length: ringCapacity })
+	let ringHead: number = 0
+	let ringTail: number = 0
+	let ringSize: number = 0
 
 	const frames = {
-		get length() {
+		get length(): number {
 			return ringSize
 		},
 	}
 
-	function ringPush(item) {
+	function ringPush(item: Buffer): void {
 		ring[ringTail] = item
 		ringTail = (ringTail + 1) % ringCapacity
 		ringSize++
 	}
 
-	function ringShift() {
+	function ringShift(): Buffer | undefined {
 		if (ringSize === 0) return undefined
 		const item = ring[ringHead]
 		ring[ringHead] = null
 		ringHead = (ringHead + 1) % ringCapacity
 		ringSize--
-		return item
+		return item!
 	}
 
-	function ringClear() {
+	function ringClear(): void {
 		ringHead = 0
 		ringTail = 0
 		ringSize = 0
 	}
 
-	let done = false
-	let streamPaused = false
-	let onFrame = null
+	let done: boolean = false
+	let streamPaused: boolean = false
+	let onFrame: (() => void) | null = null
 
-	ffmpeg.stdout.on("data", (chunk) => {
+	ffmpeg.stdout!.on("data", (chunk: Buffer) => {
 		const available = readBuf.length - writeOffset
 		if (chunk.length > available) {
 			const dataLen = writeOffset - readOffset
@@ -185,12 +197,12 @@ export function createDecoder(filePath, width, height, fps, { audio = true, star
 		}
 
 		if (ringSize >= MAX_QUEUED_FRAMES && !streamPaused) {
-			ffmpeg.stdout.pause()
+			ffmpeg.stdout!.pause()
 			streamPaused = true
 		}
 	})
 
-	ffmpeg.on("close", (code) => {
+	ffmpeg.on("close", (code: number | null) => {
 		if (code !== 0 && frames.length === 0) {
 			process.stderr.write(`\x1b[0m\nffmpeg exited with code ${code}\n${stderrBuf}\n`)
 		}
@@ -214,14 +226,14 @@ export function createDecoder(filePath, width, height, fps, { audio = true, star
 		},
 		waitForFrame() {
 			if (frames.length > 0 || done) return Promise.resolve()
-			return new Promise((resolve) => {
+			return new Promise<void>((resolve) => {
 				onFrame = resolve
 			})
 		},
 		consumeFrame() {
 			const frame = ringShift()
 			if (streamPaused && ringSize <= RESUME_THRESHOLD) {
-				ffmpeg.stdout.resume()
+				ffmpeg.stdout!.resume()
 				streamPaused = false
 			}
 			return frame
@@ -229,19 +241,19 @@ export function createDecoder(filePath, width, height, fps, { audio = true, star
 		flushFrames() {
 			ringClear()
 			if (streamPaused) {
-				ffmpeg.stdout.resume()
+				ffmpeg.stdout!.resume()
 				streamPaused = false
 			}
 		},
 		pauseStream() {
 			if (!streamPaused) {
-				ffmpeg.stdout.pause()
+				ffmpeg.stdout!.pause()
 				streamPaused = true
 			}
 		},
 		resumeStream() {
 			if (streamPaused) {
-				ffmpeg.stdout.resume()
+				ffmpeg.stdout!.resume()
 				streamPaused = false
 			}
 		},
@@ -253,7 +265,7 @@ export function createDecoder(filePath, width, height, fps, { audio = true, star
 				audioProc = null
 			}
 		},
-		respawnAudio(atTime) {
+		respawnAudio(atTime: number) {
 			if (audioProc) {
 				try {
 					audioProc.kill("SIGTERM")

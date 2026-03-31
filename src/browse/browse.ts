@@ -1,5 +1,6 @@
 // Browse mode orchestrator — wires screens, state, and video selection
 
+import type { BrowseState, Video, PlaylistContext, VideoMeta, BrowseResult } from "../types.js"
 import { enterRawMode, setTitle, clearScreen } from "../tui/terminal.js"
 import { drawTitleBar, startSpinner, clearContent, drawStatusBar } from "../tui/screen.js"
 import {
@@ -18,15 +19,15 @@ import { createMainMenu } from "./screens/main-menu.js"
 import { showVideoList, showPlaylistList, showPlaylistVideos } from "./screens/video-list.js"
 import { createSearchScreen } from "./screens/search.js"
 
-export async function browse() {
+export async function browse(): Promise<BrowseResult> {
 	enterRawMode()
 
-	const state = createBrowseState()
+	const state: BrowseState = createBrowseState()
 
 	drawTitleBar("PixelTube")
 	const startupSpinner = startSpinner("Starting PixelTube")
 
-	let accountName = null
+	let accountName: string | null = null
 	try {
 		accountName = await fetchAccountName()
 	} catch {}
@@ -34,7 +35,7 @@ export async function browse() {
 
 	setTitle(accountName ? `PixelTube (${accountName})` : "PixelTube")
 
-	function headerPrefix() {
+	function headerPrefix(): string {
 		return accountName ? `PixelTube [${accountName}]` : "PixelTube"
 	}
 
@@ -47,7 +48,7 @@ export async function browse() {
 	}
 	process.stdout.on("resize", resizeHandler)
 
-	async function selectVideo(video, playlist = null) {
+	async function selectVideo(video: Video, playlist: PlaylistContext | null = null): Promise<void> {
 		const url = `https://www.youtube.com/watch?v=${video.id}`
 		const info = {
 			title: video.title,
@@ -63,9 +64,9 @@ export async function browse() {
 
 		try {
 			const resolved = await resolveInput(url, {
-				onStatus: (msg) => spinner.update(msg),
+				onStatus: (msg: string) => spinner.update(msg),
 			})
-			const meta = resolved.meta || (await probe(resolved.streamUrl))
+			const meta: VideoMeta = resolved.meta || (await probe(resolved.streamUrl))
 			if (!info.channel && meta.channel) info.channel = meta.channel
 
 			spinner.stop()
@@ -81,13 +82,13 @@ export async function browse() {
 			})
 		} catch (err) {
 			spinner.stop()
-			state.flashMessage(`Error: ${err.message}`)
+			state.flashMessage(`Error: ${(err as Error).message}`)
 		}
 	}
 
 	const searchScreen = createSearchScreen(state, headerPrefix, selectVideo)
 
-	function onMenuAction(action) {
+	function onMenuAction(action: string): void {
 		if (action === "playlists") {
 			showPlaylistList(state, headerPrefix(), fetchPlaylists, fetchPlaylistCount, (playlist) => {
 				showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideos, selectVideo)
@@ -105,7 +106,7 @@ export async function browse() {
 
 	const mainMenu = createMainMenu(state, accountName, onMenuAction)
 
-	state.setKeyHandler((key) => {
+	state.setKeyHandler((key: string) => {
 		if (key === "ctrl-c") return state.result(null)
 		if (key === "q") return state.result(null)
 

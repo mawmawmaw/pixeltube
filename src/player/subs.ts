@@ -1,12 +1,13 @@
 // Subtitle download via yt-dlp (async, non-blocking)
 
+import type { Subtitle } from "../types.js"
 import { parseSrt } from "../utils/srt.js"
 import { execFile } from "node:child_process"
 import { readFile, rm, mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-export async function downloadSubs(videoUrl) {
+export async function downloadSubs(videoUrl: string): Promise<Subtitle[]> {
 	const tmpDir = await mkdtemp(join(tmpdir(), `pixeltube-sub-${process.pid}-`))
 	const tmpPath = join(tmpDir, "sub")
 	return new Promise((resolve) => {
@@ -25,7 +26,7 @@ export async function downloadSubs(videoUrl) {
 				videoUrl,
 			],
 			{ timeout: 15000 },
-			async (err) => {
+			async (err: Error | null) => {
 				if (err) return resolve([])
 				try {
 					const srtPath = `${tmpPath}.en.srt`

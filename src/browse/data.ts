@@ -1,47 +1,48 @@
 // YouTube data fetching via yt-dlp (playlists, subscriptions, search, etc.)
 
+import type { YtDlpClient, Video, Playlist, SearchFilters } from "../types.js"
 import { formatDuration } from "../utils/time.js"
 import { sanitize } from "../utils/sanitize.js"
 import { createClient } from "../ytdlp.js"
 
-let client = createClient()
+let client: YtDlpClient = createClient()
 
-export function setClient(c) {
+export function setClient(c: YtDlpClient): void {
 	client = c
 }
 
-function runYtDlp(args, timeout = 60000) {
+function runYtDlp(args: string[], timeout = 60000): Promise<string> {
 	return client.run(args, timeout)
 }
 
-function parseJsonLines(raw) {
+function parseJsonLines(raw: string): Record<string, unknown>[] {
 	if (!raw) return []
 	return raw
 		.split("\n")
 		.filter(Boolean)
 		.map((line) => {
 			try {
-				return JSON.parse(line)
+				return JSON.parse(line) as Record<string, unknown>
 			} catch {
 				return null
 			}
 		})
-		.filter(Boolean)
+		.filter(Boolean) as Record<string, unknown>[]
 }
 
-function clean(val) {
+function clean(val: unknown): string {
 	if (val == null || val === "NA" || val === "None") return ""
 	return sanitize(String(val))
 }
 
-function enrichVideos(raw) {
+function enrichVideos(raw: string): Video[] {
 	return parseJsonLines(raw)
 		.map((d) => ({
-			id: d.id || "",
+			id: (d.id as string) || "",
 			title: clean(d.title),
 			channel: clean(d.channel || d.uploader),
-			duration: d.duration || "",
-			durationFmt: formatDuration(d.duration),
+			duration: (d.duration as string | number) || "",
+			durationFmt: formatDuration(d.duration as number),
 		}))
 		.filter((v) => {
 			const t = v.title.toLowerCase()
@@ -51,7 +52,7 @@ function enrichVideos(raw) {
 
 const VIDEO_JSON = "%()j"
 
-export async function fetchAccountName() {
+export async function fetchAccountName(): Promise<string | null> {
 	try {
 		// Watch Later playlist reliably has playlist_uploader
 		const raw = await runYtDlp(
@@ -72,16 +73,16 @@ export async function fetchAccountName() {
 	}
 }
 
-export async function fetchPlaylists() {
+export async function fetchPlaylists(): Promise<Playlist[]> {
 	const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, "https://www.youtube.com/feed/playlists"])
 	return parseJsonLines(raw).map((d) => ({
 		title: clean(d.title) || "Untitled",
-		id: d.id || "",
+		id: (d.id as string) || "",
 		videoCount: null,
 	}))
 }
 
-export async function fetchPlaylistCount(playlistId) {
+export async function fetchPlaylistCount(playlistId: string): Promise<number | null> {
 	try {
 		const raw = await runYtDlp(
 			[
@@ -101,7 +102,7 @@ export async function fetchPlaylistCount(playlistId) {
 	}
 }
 
-export async function fetchPlaylistVideos(playlistId) {
+export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",
 		"--print",
@@ -111,7 +112,7 @@ export async function fetchPlaylistVideos(playlistId) {
 	return enrichVideos(raw)
 }
 
-export async function fetchSubscriptions() {
+export async function fetchSubscriptions(): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",
 		"--playlist-end",
@@ -123,7 +124,7 @@ export async function fetchSubscriptions() {
 	return enrichVideos(raw)
 }
 
-export async function fetchRecommendations() {
+export async function fetchRecommendations(): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",
 		"--playlist-end",
@@ -135,7 +136,7 @@ export async function fetchRecommendations() {
 	return enrichVideos(raw)
 }
 
-export async function fetchHistory() {
+export async function fetchHistory(): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",
 		"--playlist-end",
@@ -147,26 +148,26 @@ export async function fetchHistory() {
 	return enrichVideos(raw)
 }
 
-export async function fetchPlaylistByUrl(url) {
+export async function fetchPlaylistByUrl(url: string): Promise<Video[]> {
 	const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, url])
 	return enrichVideos(raw)
 }
 
-export async function search(query, filters = null) {
+export async function search(query: string, filters: SearchFilters | null = null): Promise<Video[]> {
 	if (!filters) {
 		const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, `ytsearch20:${query}`])
 		return enrichVideos(raw)
 	}
 
 	// sp is a base64-encoded protobuf; these are the known values:
-	const spParts = []
+	const spParts: string[] = []
 
 	// Sort: CAI=upload_date, CAM=view_count, CAE=rating
-	const sortMap = { date: "CAI", views: "CAM", rating: "CAE" }
+	const sortMap: Record<string, string> = { date: "CAI", views: "CAM", rating: "CAE" }
 	if (filters.sort && sortMap[filters.sort]) spParts.push(sortMap[filters.sort])
 
 	// Duration: EgIYAQ=short, EgIYAw=medium, EgIYAg=long
-	const durMap = { short: "EgIYAQ", medium: "EgIYAw", long: "EgIYAg" }
+	const durMap: Record<string, string> = { short: "EgIYAQ", medium: "EgIYAw", long: "EgIYAg" }
 	if (filters.duration && durMap[filters.duration]) spParts.push(durMap[filters.duration])
 
 	// Type: EgIQAQ=video (default for us)

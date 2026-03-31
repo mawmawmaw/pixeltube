@@ -1,6 +1,6 @@
 // Time formatting utilities shared across player and browse
 
-export function formatTime(secs) {
+export function formatTime(secs: number): string {
 	const s = Math.max(0, Math.floor(secs))
 	const h = Math.floor(s / 3600)
 	const m = Math.floor((s % 3600) / 60)
@@ -9,7 +9,7 @@ export function formatTime(secs) {
 	return `${m}:${String(sec).padStart(2, "0")}`
 }
 
-export function formatDuration(secs) {
+export function formatDuration(secs: number | string): string {
 	const n = Math.round(Number(secs) || 0)
 	if (n <= 0) return ""
 	return formatTime(n)

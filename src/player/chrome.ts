@@ -1,5 +1,6 @@
 // Player UI chrome — borders, progress bar, info panel (compact + full modes)
 
+import type { VideoInfo } from "../types.js"
 import { theme } from "../tui/theme.js"
 import { syncStart, syncEnd } from "../tui/terminal.js"
 import { formatTime } from "../utils/time.js"
@@ -9,32 +10,32 @@ const DIM = theme.dim
 const BOLD = theme.bold
 const RESET = theme.reset
 
-const TL = "╭"
-const TR = "╮"
-const BL = "╰"
-const BR = "╯"
-const H = "─"
-const V = "│"
+const TL = "\u256D"
+const TR = "\u256E"
+const BL = "\u2570"
+const BR = "\u256F"
+const H = "\u2500"
+const V = "\u2502"
 
-export function drawProgressBar(current, total, barWidth) {
+export function drawProgressBar(current: number, total: number, barWidth: number): string {
 	if (total <= 0) return H.repeat(barWidth)
 	const filled = Math.round((current / total) * barWidth)
 	const empty = barWidth - filled
-	return `${theme.progressFill}${"━".repeat(Math.max(0, filled))}${RESET}${theme.progressEmpty}${"─".repeat(Math.max(0, empty))}${RESET}`
+	return `${theme.progressFill}${"\u2501".repeat(Math.max(0, filled))}${RESET}${theme.progressEmpty}${"\u2500".repeat(Math.max(0, empty))}${RESET}`
 }
 
 export function drawChrome(
-	videoRows,
-	videoWidth,
-	info,
-	currentTime,
-	duration,
-	isPaused,
-	nextTitle,
-	isMuted,
-	subtitle,
-	compact,
-) {
+	videoRows: number,
+	videoWidth: number,
+	info: VideoInfo,
+	currentTime: number,
+	duration: number,
+	isPaused: boolean,
+	nextTitle: string | null,
+	isMuted: boolean,
+	subtitle: string | null,
+	compact: boolean,
+): void {
 	const termCols = process.stdout.columns || 80
 	const termRows = process.stdout.rows || 24
 
@@ -62,17 +63,17 @@ export function drawChrome(
 }
 
 function drawCompact(
-	videoRows,
-	termCols,
-	termRows,
-	info,
-	currentTime,
-	duration,
-	isPaused,
-	isMuted,
-	nextTitle,
-	subtitle,
-) {
+	videoRows: number,
+	termCols: number,
+	termRows: number,
+	info: VideoInfo,
+	currentTime: number,
+	duration: number,
+	isPaused: boolean,
+	isMuted: boolean,
+	nextTitle: string | null,
+	subtitle: string | null,
+): void {
 	const infoRow = videoRows + 1
 
 	process.stdout.write(`\x1b[${infoRow};1H\x1b[2K`)
@@ -81,7 +82,7 @@ function drawCompact(
 	const title = sanitize(info.title || "")
 	const durStr = duration > 0 ? ` / ${formatTime(duration)}` : ""
 	const timeStr = `${formatTime(currentTime)}${durStr}`
-	const statusTags = []
+	const statusTags: string[] = []
 	if (isPaused) statusTags.push("II")
 	if (isMuted) statusTags.push("M")
 	const statusText = statusTags.join(" ")
@@ -112,18 +113,18 @@ function drawCompact(
 }
 
 function drawFull(
-	videoRows,
-	videoWidth,
-	termCols,
-	termRows,
-	info,
-	currentTime,
-	duration,
-	isPaused,
-	isMuted,
-	nextTitle,
-	subtitle,
-) {
+	videoRows: number,
+	videoWidth: number,
+	termCols: number,
+	termRows: number,
+	info: VideoInfo,
+	currentTime: number,
+	duration: number,
+	isPaused: boolean,
+	isMuted: boolean,
+	nextTitle: string | null,
+	subtitle: string | null,
+): void {
 	const boxWidth = videoWidth + 2
 	const offsetX = Math.max(1, Math.floor((termCols - boxWidth) / 2) + 1)
 	const offsetY = 1
@@ -154,7 +155,7 @@ function drawFull(
 
 	const durStr = duration > 0 ? ` / ${formatTime(duration)}` : ""
 	const timeStr = `${formatTime(currentTime)}${durStr}`
-	const statusTags = []
+	const statusTags: string[] = []
 	if (isPaused) statusTags.push("PAUSED")
 	if (isMuted) statusTags.push("MUTED")
 	const statusText = statusTags.length > 0 ? statusTags.join(" ") + " " : ""

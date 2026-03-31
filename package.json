@@ -1,6 +1,6 @@
 {
 	"name": "pixeltube",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "Play videos in the terminal as colored pixel art",
 	"license": "MIT",
 	"author": "Mauricio Garcia de Ceca Garcia (0xMaw - maw.dev)",
@@ -16,7 +16,8 @@
 		"lint": "oxlint src/ bin/ test/",
 		"format": "biome format --write",
 		"format:check": "biome format",
-		"check": "npm run lint && npm run format:check && npm run build && npm run test"
+		"check": "npm run lint && npm run format:check && npm run build && npm run test",
+		"publish": "bash scripts/publish.sh"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.10",

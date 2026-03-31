@@ -1,0 +1,16 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+	"formatter": {
+		"indentStyle": "tab",
+		"lineWidth": 120
+	},
+	"javascript": {
+		"formatter": {
+			"semicolons": "asNeeded",
+			"quoteStyle": "double"
+		}
+	},
+	"files": {
+		"includes": ["src/**/*.js", "bin/**/*.js", "test/**/*.js"]
+	}
+}

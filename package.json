@@ -1,6 +1,6 @@
 {
 	"name": "pixeltube",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Play videos in the terminal as colored pixel art",
 	"license": "MIT",
 	"author": "Mauricio Garcia de Ceca Garcia (0xMaw - maw.dev)",
@@ -9,8 +9,8 @@
 		"pixeltube": "./dist/bin/pixeltube.js"
 	},
 	"scripts": {
-		"build": "tsc",
-		"prepare": "tsc",
+		"build": "tsc && chmod +x dist/bin/pixeltube.js",
+		"prepare": "tsc && chmod +x dist/bin/pixeltube.js",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "oxlint src/ bin/ test/",

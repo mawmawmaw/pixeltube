@@ -74,7 +74,7 @@ export function parseKey(data: string): string | null {
 	if (data === "\x1b[C") return "right"
 	if (data === "\x1b[D") return "left"
 	if (data === "\t") return "tab"
-	if (data.length === 1 && data.charCodeAt(0) >= 32 && data.charCodeAt(0) <= 126) return data
+	if (data.length === 1 && data.charCodeAt(0) >= 32 && data.charCodeAt(0) <= 126) return data.toLowerCase()
 	return null
 }
 

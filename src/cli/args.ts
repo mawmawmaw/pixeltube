@@ -18,6 +18,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
 	const first = args[0]
 	if (first === "help" || first === "--help" || first === "-h") return { subcommand: "help", input: null, options }
+	if (first === "--version" || first === "-V") return { subcommand: "version", input: null, options }
 	if (first === "login") return { subcommand: "login", input: null, options: parseCookies(args, options) }
 	if (first === "browse") return { subcommand: "browse", input: null, options: parseCookies(args, options) }
 
@@ -36,6 +37,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
 			options.cookies = args[++i]
 		} else if (args[i] === "--help" || args[i] === "-h") {
 			return { subcommand: "help", input: null, options }
+		} else if (args[i] === "--version" || args[i] === "-V") {
+			return { subcommand: "version", input: null, options }
 		} else if (!input) {
 			input = args[i]
 		}

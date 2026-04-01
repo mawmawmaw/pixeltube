@@ -1,6 +1,6 @@
 // YouTube data fetching via yt-dlp (playlists, subscriptions, search, etc.)
 
-import type { YtDlpClient, Video, Playlist, SearchFilters } from "../types.js"
+import type { YtDlpClient, Video, Playlist, SearchFilters, SearchResult } from "../types.js"
 import { formatDuration } from "../utils/time.js"
 import { sanitize } from "../utils/sanitize.js"
 import { createClient } from "../ytdlp.js"
@@ -148,36 +148,74 @@ export async function fetchHistory(): Promise<Video[]> {
 	return enrichVideos(raw)
 }
 
+export async function fetchChannelVideos(channelId: string): Promise<Video[]> {
+	const raw = await runYtDlp([
+		"--flat-playlist",
+		"--playlist-end",
+		"30",
+		"--print",
+		VIDEO_JSON,
+		`https://www.youtube.com/channel/${channelId}/videos`,
+	])
+	return enrichVideos(raw)
+}
+
 export async function fetchPlaylistByUrl(url: string): Promise<Video[]> {
 	const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, url])
 	return enrichVideos(raw)
 }
 
-export async function search(query: string, filters: SearchFilters | null = null): Promise<Video[]> {
-	if (!filters) {
-		const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, `ytsearch20:${query}`])
-		return enrichVideos(raw)
-	}
+function enrichSearchResults(raw: string): SearchResult[] {
+	return parseJsonLines(raw)
+		.map((d): SearchResult | null => {
+			const id = (d.id as string) || ""
+			const title = clean(d.title)
+			if (!id || !title) return null
+			const t = title.toLowerCase()
+			if (t === "[deleted video]" || t === "[private video]") return null
 
-	// sp is a base64-encoded protobuf; these are the known values:
+			const type = (d._type as string) || ""
+
+			if (type === "playlist" || id.startsWith("PL")) {
+				return { resultType: "playlist", id, title, videoCount: (d.playlist_count as number) ?? null }
+			}
+			if (type === "channel" || id.startsWith("UC")) {
+				return { resultType: "channel", id, title }
+			}
+			return {
+				resultType: "video",
+				id,
+				title,
+				channel: clean(d.channel || d.uploader),
+				duration: (d.duration as string | number) || "",
+				durationFmt: formatDuration(d.duration as number),
+			}
+		})
+		.filter(Boolean) as SearchResult[]
+}
+
+export async function search(query: string, filters: SearchFilters | null = null): Promise<SearchResult[]> {
 	const spParts: string[] = []
 
-	// Sort: CAI=upload_date, CAM=view_count, CAE=rating
-	const sortMap: Record<string, string> = { date: "CAI", views: "CAM", rating: "CAE" }
-	if (filters.sort && sortMap[filters.sort]) spParts.push(sortMap[filters.sort])
+	if (filters) {
+		// Sort: CAI=upload_date, CAM=view_count, CAE=rating
+		const sortMap: Record<string, string> = { date: "CAI", views: "CAM", rating: "CAE" }
+		if (filters.sort && sortMap[filters.sort]) spParts.push(sortMap[filters.sort])
 
-	// Duration: EgIYAQ=short, EgIYAw=medium, EgIYAg=long
-	const durMap: Record<string, string> = { short: "EgIYAQ", medium: "EgIYAw", long: "EgIYAg" }
-	if (filters.duration && durMap[filters.duration]) spParts.push(durMap[filters.duration])
+		// Duration: EgIYAQ=short, EgIYAw=medium, EgIYAg=long
+		const durMap: Record<string, string> = { short: "EgIYAQ", medium: "EgIYAw", long: "EgIYAg" }
+		if (filters.duration && durMap[filters.duration]) spParts.push(durMap[filters.duration])
 
-	// Type: EgIQAQ=video (default for us)
-	spParts.push("EgIQAQ")
+		// Type: EgIQAQ=video, EgIQAg=channel, EgIQAw=playlist
+		const typeMap: Record<string, string> = { video: "EgIQAQ", channel: "EgIQAg", playlist: "EgIQAw" }
+		if (filters.type && typeMap[filters.type]) spParts.push(typeMap[filters.type])
+	}
 
 	const sp = spParts.length > 0 ? `&sp=${encodeURIComponent(spParts.join(""))}` : ""
 	const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}${sp}`
 
 	const raw = await runYtDlp(["--flat-playlist", "--playlist-end", "20", "--print", VIDEO_JSON, searchUrl])
-	return enrichVideos(raw)
+	return enrichSearchResults(raw)
 }
 
 export { formatDuration }

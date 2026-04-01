@@ -1,14 +1,17 @@
 // Help and usage text output
 
+import { VERSION } from "./update-check.js"
+
 export function printHelp(): void {
 	console.log(`
-  pixeltube — Play videos as colored pixel art in the terminal
+  pixeltube v${VERSION} — Play videos as colored pixel art in the terminal
 
   USAGE
     pixeltube <video-file-or-url> [options]    Play a video
     pixeltube browse                           Browse YouTube interactively
     pixeltube login                            Check YouTube auth & launch browse
     pixeltube help                             Show this help
+    pixeltube --version                        Print version and exit
 
   PLAYBACK OPTIONS
     --fps, -f N      Override framerate

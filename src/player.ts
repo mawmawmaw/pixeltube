@@ -42,7 +42,8 @@ export async function play(
 	let showSubs = false
 
 	const keyHandler = (data: string | Buffer) => {
-		const str = String(data)
+		const raw = String(data)
+		const str = raw.length === 1 ? raw.toLowerCase() : raw
 		if (str === "\x1b" || str === "\x1b[D") pendingAction = "back"
 		else if (str === "\x03" || str === "q") pendingAction = "quit"
 		else if (str === " ") pendingAction = "toggle-pause"

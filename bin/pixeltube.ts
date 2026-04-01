@@ -8,6 +8,7 @@ import { createClient } from "../src/ytdlp.js"
 import { setClient as setResolveClient } from "../src/resolve.js"
 import { parseArgs, cookieArgsFromOptions, validateOptions } from "../src/cli/args.js"
 import { printHelp } from "../src/cli/help.js"
+import { VERSION, checkForUpdates } from "../src/cli/update-check.js"
 import { cmdLogin, cmdBrowse, cmdDefaultBrowse, cmdPlayUrl, cmdPlayFile } from "../src/cli/commands.js"
 
 process.on("uncaughtException", (err) => {
@@ -23,6 +24,11 @@ process.on("unhandledRejection", (err) => {
 
 const { subcommand, input, options } = parseArgs(process.argv)
 
+if (subcommand === "version") {
+	console.log(`pixeltube v${VERSION}`)
+	process.exit(0)
+}
+
 const errors = validateOptions(options)
 if (errors.length > 0) {
 	errors.forEach((e) => console.error(e))
@@ -37,6 +43,8 @@ if (subcommand === "help") {
 	printHelp()
 	process.exit(0)
 }
+
+checkForUpdates()
 
 checkTTY()
 

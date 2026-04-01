@@ -1,12 +1,12 @@
 // Search screen with text input, filters, and result display
 
-import type { BrowseState, Video, PlaylistContext, SearchFilters } from "../../types.js"
+import type { BrowseState, Video, Playlist, PlaylistContext, SearchFilters, SearchResult } from "../../types.js"
 import { moveTo, clearLine, cols, rows, showCursor, hideCursor } from "../../tui/terminal.js"
 import { drawTitleBar, startSpinner, drawStatusBar, clearContent } from "../../tui/screen.js"
 import { createListView } from "../../tui/list-view.js"
 import { search } from "../data.js"
 import { theme } from "../../tui/theme.js"
-import { formatVideoItem } from "../format.js"
+import { formatSearchResult } from "../format.js"
 
 const DIM = theme.dim
 const BOLD = theme.bold
@@ -15,17 +15,20 @@ const RESET = theme.reset
 const FILTER_OPTIONS: Record<string, string[]> = {
 	sort: ["relevance", "date", "views", "rating"],
 	duration: ["any", "short", "medium", "long"],
+	type: ["all", "video", "playlist", "channel"],
 }
 
 export function createSearchScreen(
 	browseState: BrowseState,
 	headerPrefix: () => string,
 	onSelectVideo: (video: Video, context: PlaylistContext) => void,
+	onSelectPlaylist: (playlist: Playlist) => void,
+	onSelectChannel: (id: string, title: string) => void,
 ) {
 	let searchBuffer = ""
 	let filterMode = false
 	let filterField = 0
-	let searchFilters: Record<string, string> = { sort: "relevance", duration: "any" }
+	let searchFilters: Record<string, string> = { sort: "relevance", duration: "any", type: "all" }
 
 	function show(): void {
 		searchBuffer = ""
@@ -49,24 +52,25 @@ export function createSearchScreen(
 		clearLine(r + 1)
 		clearLine(r + 2)
 		clearLine(r + 3)
+		clearLine(r + 4)
 
 		moveTo(r, 1)
 		const prompt = `  ${BOLD}Search:${RESET} ${searchBuffer}${DIM}_${RESET}`
 		process.stdout.write(prompt.length > w + 20 ? prompt.slice(0, w) : prompt)
 
-		const sortLabel = `Sort: ${searchFilters.sort}`
-		const durLabel = `Duration: ${searchFilters.duration}`
-		moveTo(r + 2, 3)
-		if (filterMode && filterField === 0) {
-			process.stdout.write(`${theme.accentBold}> ${sortLabel}${RESET}`)
-		} else {
-			process.stdout.write(`${DIM}  ${sortLabel}${RESET}`)
-		}
-		moveTo(r + 3, 3)
-		if (filterMode && filterField === 1) {
-			process.stdout.write(`${theme.accentBold}> ${durLabel}${RESET}`)
-		} else {
-			process.stdout.write(`${DIM}  ${durLabel}${RESET}`)
+		const fields = ["sort", "duration", "type"]
+		const labels = [
+			`Sort: ${searchFilters.sort}`,
+			`Duration: ${searchFilters.duration}`,
+			`Type: ${searchFilters.type}`,
+		]
+		for (let i = 0; i < fields.length; i++) {
+			moveTo(r + 2 + i, 3)
+			if (filterMode && filterField === i) {
+				process.stdout.write(`${theme.accentBold}> ${labels[i]}${RESET}`)
+			} else {
+				process.stdout.write(`${DIM}  ${labels[i]}${RESET}`)
+			}
 		}
 
 		showCursor()
@@ -80,25 +84,44 @@ export function createSearchScreen(
 		const spinner = startSpinner("Searching")
 		drawStatusBar(" Please wait...")
 
-		const filters: SearchFilters | null =
-			searchFilters.sort !== "relevance" || searchFilters.duration !== "any"
-				? {
-						sort: searchFilters.sort === "relevance" ? null : searchFilters.sort,
-						duration: searchFilters.duration === "any" ? null : searchFilters.duration,
-					}
-				: null
+		const hasFilters =
+			searchFilters.sort !== "relevance" || searchFilters.duration !== "any" || searchFilters.type !== "all"
+		const filters: SearchFilters | null = hasFilters
+			? {
+					sort: searchFilters.sort === "relevance" ? null : searchFilters.sort,
+					duration: searchFilters.duration === "any" ? null : searchFilters.duration,
+					type: searchFilters.type === "all" ? null : searchFilters.type,
+				}
+			: null
 
 		try {
-			const videos = await search(query, filters)
+			const results = await search(query, filters)
 			spinner.stop()
-			if (videos.length === 0) {
+			if (results.length === 0) {
 				return browseState.flashMessage("No results found")
 			}
 
 			const listView = createListView({
-				items: videos,
-				formatItem: formatVideoItem,
-				onSelect: (video: Video, idx: number) => onSelectVideo(video, { videos, index: idx }),
+				items: results,
+				formatItem: formatSearchResult,
+				onSelect: (item: SearchResult) => {
+					if (item.resultType === "video") {
+						const videoResults = results.filter((r): r is SearchResult & { resultType: "video" } => r.resultType === "video")
+						const videoIdx = videoResults.findIndex((r) => r.id === item.id)
+						const videos: Video[] = videoResults.map((r) => ({
+							id: r.id,
+							title: r.title,
+							channel: r.channel,
+							duration: r.duration,
+							durationFmt: r.durationFmt,
+						}))
+						onSelectVideo(videos[videoIdx], { videos, index: videoIdx })
+					} else if (item.resultType === "playlist") {
+						onSelectPlaylist({ id: item.id, title: item.title, videoCount: item.videoCount })
+					} else if (item.resultType === "channel") {
+						onSelectChannel(item.id, item.title)
+					}
+				},
 				onBack: () => browseState.popState(),
 				spacing: 1,
 			})
@@ -115,7 +138,7 @@ export function createSearchScreen(
 
 	function handleKey(key: string): void {
 		if (filterMode) {
-			const fields = ["sort", "duration"]
+			const fields = ["sort", "duration", "type"]
 			const field = fields[filterField]
 			const opts = FILTER_OPTIONS[field]
 			const curIdx = opts.indexOf(searchFilters[field])

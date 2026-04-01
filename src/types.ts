@@ -193,9 +193,15 @@ export interface Theme {
 
 // --- Search ---
 
+export type SearchResult =
+	| { resultType: "video"; id: string; title: string; channel: string; duration: string | number; durationFmt: string }
+	| { resultType: "playlist"; id: string; title: string; videoCount: number | null }
+	| { resultType: "channel"; id: string; title: string }
+
 export interface SearchFilters {
 	sort: string | null
 	duration: string | null
+	type: string | null
 }
 
 // --- Play ---

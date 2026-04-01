@@ -32,7 +32,7 @@ describe("parseKey", () => {
 
 	it("parses printable characters", () => {
 		expect(parseKey("a")).toBe("a")
-		expect(parseKey("Z")).toBe("Z")
+		expect(parseKey("Z")).toBe("z")
 		expect(parseKey("5")).toBe("5")
 		expect(parseKey(" ")).toBe(" ")
 		expect(parseKey("~")).toBe("~")

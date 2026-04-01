@@ -79,7 +79,15 @@ export function createMainMenu(
 	browseState: BrowseState,
 	accountName: string | null,
 	onAction: (action: string) => void,
+	opts: { loggedIn?: boolean } = {},
 ) {
+	const loggedIn = opts.loggedIn ?? true
+
+	function getMenuItems(): MenuItem[] {
+		if (!loggedIn) return MENU_ITEMS.filter((item) => item.action === "search")
+		return MENU_ITEMS
+	}
+
 	function show(): void {
 		browseState.pushState({
 			title: () => (accountName ? `PixelTube [${accountName}]` : "PixelTube"),
@@ -94,7 +102,7 @@ export function createMainMenu(
 		const w = cols()
 		const r = contentRows()
 		const state = browseState.currentState() as MenuScreenState
-		const items = MENU_ITEMS
+		const items = getMenuItems()
 
 		syncStart()
 
@@ -153,7 +161,7 @@ export function createMainMenu(
 
 	function handleKey(key: string): void {
 		const state = browseState.currentState() as MenuScreenState
-		const items = state._menuItems || MENU_ITEMS
+		const items = state._menuItems || getMenuItems()
 		if (key === "up") {
 			if (state.selectedIdx > 0) state.selectedIdx--
 			draw()

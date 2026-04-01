@@ -16,6 +16,7 @@
 ```
 
 **Play videos as colored pixel art in your terminal.** Browse YouTube, stream videos, manage playlists — all from the command line.
+Pixeltube lets you link your Youtube account using cookies and browse your subsciptions, recommendations, playlists and history. If you don't want to link your account, you can still search for whatever you like and enjoy.
 
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-required-007808?logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
@@ -27,12 +28,13 @@
 ## Features
 
 - **Terminal video playback** — renders video frames as colored Unicode half-blocks with 24-bit truecolor
-- **YouTube integration** — browse recommendations, subscriptions, playlists, history, and search
+- **YouTube integration** — browse recommendations, subscriptions, playlists, history, and search (no login required for search)
 - **Audio playback** — synced audio via ffplay, with mute toggle
 - **Player controls** — pause/play, rewind/forward, next/prev track, subtitles
 - **Continuous playlist playback** — auto-advances through playlists with next/prev support
 - **Subtitles** — auto-downloads and overlays English subtitles
-- **Search with filters** — sort by date/views/rating, filter by duration
+- **Search with filters** — sort by date/views/rating, filter by duration and type (videos, playlists, channels)
+- **Update notifications** — checks for new versions and shows the appropriate update command
 - **Responsive UI** — adapts to terminal size with multiple layout tiers
 - **Theme aware** — detects dark/light terminal themes
 - **256-color fallback** — works on terminals without truecolor support
@@ -56,10 +58,10 @@ brew tap mawmawmaw/tap
 brew install pixeltube
 ```
 
-### Update
+### npm
 
 ```bash
-brew update && brew upgrade pixeltube
+npm i -g pixeltube
 ```
 
 ### From source
@@ -88,14 +90,15 @@ pixeltube 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
 
 ## Commands
 
-| Command      | Description                  |
-| ------------ | ---------------------------- |
-| `pixeltube`        | Launch browse mode (default) |
-| `pixeltube<file>` | Play a local video file      |
-| `pixeltube<url>`  | Stream a YouTube video       |
-| `pixeltubebrowse` | Browse YouTube interactively |
-| `pixeltubelogin`  | Check YouTube authentication |
-| `pixeltubehelp`   | Show full documentation      |
+| Command               | Description                        |
+| --------------------- | ---------------------------------- |
+| `pixeltube`           | Launch browse mode (default)       |
+| `pixeltube <file>`    | Play a local video file            |
+| `pixeltube <url>`     | Stream a YouTube video or playlist |
+| `pixeltube browse`    | Browse YouTube interactively       |
+| `pixeltube login`     | Check YouTube authentication       |
+| `pixeltube help`      | Show full documentation            |
+| `pixeltube --version` | Print version and exit             |
 
 ## Options
 
@@ -106,6 +109,7 @@ pixeltube 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
 --dl               Download video first (slower but reliable)
 --no-audio         Disable audio playback
 --cookies FILE     Use exported cookies.txt instead of Chrome cookies
+--version, -V      Print version and exit
 ```
 
 ## Player Controls
@@ -113,38 +117,42 @@ pixeltube 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
 | Key            | Action           |
 | -------------- | ---------------- |
 | `Space`        | Pause / Play     |
-| `r`            | Rewind 10s       |
-| `f`            | Forward 10s      |
-| `n`            | Next track       |
-| `p`            | Previous track   |
-| `m`            | Mute / Unmute    |
-| `s`            | Toggle subtitles |
-| `q`            | Quit             |
+| `R`            | Rewind 10s       |
+| `F`            | Forward 10s      |
+| `N`            | Next track       |
+| `P`            | Previous track   |
+| `M`            | Mute / Unmute    |
+| `S`            | Toggle subtitles |
+| `Q`            | Quit             |
 | `Esc` / `Left` | Back to browse   |
+
+All player controls are case-insensitive.
 
 ## Browse Navigation
 
-| Key               | Action                          |
-| ----------------- | ------------------------------- |
-| `Up` / `Down`     | Navigate list                   |
-| `Enter` / `Right` | Select                          |
-| `Esc` / `Left`    | Go back                         |
-| `Tab`             | Search filters (in search mode) |
-| `q`               | Quit                            |
+| Key               | Action                                       |
+| ----------------- | -------------------------------------------- |
+| `Up` / `Down`     | Navigate list                                |
+| `Enter` / `Right` | Select (plays video, opens playlist/channel) |
+| `Esc` / `Left`    | Go back                                      |
+| `Tab`             | Search filters (sort, duration, type)        |
+| `Q`               | Quit                                         |
 
 ## Authentication
 
-PixelTube uses your Chrome browser cookies to access your YouTube account. No API keys needed.
+**Search and playback work without logging in.** When you launch `pixeltube` without authentication, you'll see a search-only browse mode.
+
+To access your recommendations, subscriptions, playlists, and history, log in with your Chrome browser cookies. No API keys needed.
 
 ```bash
 # Default: reads cookies from Chrome (macOS Keychain prompt)
-pixeltubelogin
+pixeltube login
 
 # Alternative: use an exported cookies.txt file
-pixeltubelogin --cookies ~/cookies.txt
+pixeltube login --cookies ~/cookies.txt
 ```
 
-> **Notes:** You must be logged in Youtube on Chrome for cookie access to work. You may also be prompted to grant access to the cookie vault to read the session cookie.
+> **Notes:** You must be logged in to YouTube on Chrome for cookie access to work. You may also be prompted to grant access to the cookie vault to read the session cookie.
 
 ## How It Works
 

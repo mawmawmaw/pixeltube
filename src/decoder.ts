@@ -176,7 +176,7 @@ export function createDecoder(
 		chunk.copy(readBuf, writeOffset)
 		writeOffset += chunk.length
 
-		while (writeOffset - readOffset >= frameSize) {
+		while (writeOffset - readOffset >= frameSize && ringSize < ringCapacity) {
 			const frame = acquireBuffer()
 			readBuf.copy(frame, 0, readOffset, readOffset + frameSize)
 			readOffset += frameSize

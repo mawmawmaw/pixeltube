@@ -11,6 +11,7 @@ import {
 	fetchRecommendations,
 	fetchHistory,
 	fetchAccountName,
+	fetchChannelVideos,
 } from "./data.js"
 import { resolveInput } from "../resolve.js"
 import { probe } from "../probe.js"
@@ -19,7 +20,8 @@ import { createMainMenu } from "./screens/main-menu.js"
 import { showVideoList, showPlaylistList, showPlaylistVideos } from "./screens/video-list.js"
 import { createSearchScreen } from "./screens/search.js"
 
-export async function browse(): Promise<BrowseResult> {
+export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseResult> {
+	const loggedIn = opts.loggedIn ?? true
 	enterRawMode()
 
 	const state: BrowseState = createBrowseState()
@@ -28,9 +30,11 @@ export async function browse(): Promise<BrowseResult> {
 	const startupSpinner = startSpinner("Starting PixelTube")
 
 	let accountName: string | null = null
-	try {
-		accountName = await fetchAccountName()
-	} catch {}
+	if (loggedIn) {
+		try {
+			accountName = await fetchAccountName()
+		} catch {}
+	}
 	startupSpinner.stop()
 
 	setTitle(accountName ? `PixelTube (${accountName})` : "PixelTube")
@@ -86,7 +90,17 @@ export async function browse(): Promise<BrowseResult> {
 		}
 	}
 
-	const searchScreen = createSearchScreen(state, headerPrefix, selectVideo)
+	const searchScreen = createSearchScreen(
+		state,
+		headerPrefix,
+		selectVideo,
+		(playlist) => {
+			showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideos, selectVideo)
+		},
+		(channelId, channelTitle) => {
+			showVideoList(state, headerPrefix(), channelTitle, () => fetchChannelVideos(channelId), selectVideo)
+		},
+	)
 
 	function onMenuAction(action: string): void {
 		if (action === "playlists") {
@@ -104,7 +118,7 @@ export async function browse(): Promise<BrowseResult> {
 		}
 	}
 
-	const mainMenu = createMainMenu(state, accountName, onMenuAction)
+	const mainMenu = createMainMenu(state, accountName, onMenuAction, { loggedIn })
 
 	state.setKeyHandler((key: string) => {
 		if (key === "ctrl-c") return state.result(null)

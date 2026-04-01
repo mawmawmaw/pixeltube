@@ -69,17 +69,17 @@ export async function cmdLogin(ytdlp: YtDlpClient, cookieArgs: string[]): Promis
 	const { verifyLogin } = await import("../login.js")
 	await verifyLogin(ytdlp, cookieArgs)
 	console.log("\nLaunching browse...\n")
-	await cmdBrowse(ytdlp)
+	await cmdBrowse(ytdlp, { loggedIn: true })
 }
 
-export async function cmdBrowse(ytdlp: YtDlpClient): Promise<void> {
+export async function cmdBrowse(ytdlp: YtDlpClient, opts: { loggedIn?: boolean } = {}): Promise<void> {
 	checkFfmpeg()
 
 	const { setClient: setBrowseClient } = await import("../browse/data.js")
 	setBrowseClient(ytdlp)
 
 	const { browse } = await import("../browse/browse.js")
-	let { selection, resume } = await browse()
+	let { selection, resume } = await browse({ loggedIn: opts.loggedIn })
 
 	while (true) {
 		if (!selection) break
@@ -184,12 +184,7 @@ export async function cmdDefaultBrowse(ytdlp: YtDlpClient, cookieArgs: string[])
 	spinner.stop()
 	hideLoading()
 
-	if (!loggedIn) {
-		const { verifyLogin } = await import("../login.js")
-		await verifyLogin(ytdlp, cookieArgs)
-	}
-
-	await cmdBrowse(ytdlp)
+	await cmdBrowse(ytdlp, { loggedIn })
 }
 
 export async function cmdPlayUrl(input: string, options: PlayVideoOptions): Promise<void> {

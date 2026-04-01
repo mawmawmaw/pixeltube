@@ -4,6 +4,7 @@ import type { BrowseState, BrowseScreenState } from "../../types.js"
 import { moveTo, cols, rows, syncStart, syncEnd } from "../../tui/terminal.js"
 import { contentRows } from "../../tui/screen.js"
 import { theme } from "../../tui/theme.js"
+import { getUpdateNotice } from "../../cli/update-check.js"
 
 const DIM = theme.dim
 const BOLD = theme.bold
@@ -143,7 +144,13 @@ export function createMainMenu(
 			}
 		}
 
-		if (accountName) {
+		const notice = getUpdateNotice()
+		if (notice) {
+			const truncNotice = notice.length > w - 2 ? notice.slice(0, w - 5) + "..." : notice
+			const noticePad = Math.max(0, Math.floor((w - truncNotice.length) / 2))
+			moveTo(rows() - 1, 1)
+			process.stdout.write(`\x1b[2K${" ".repeat(noticePad)}${theme.accentBold}${truncNotice}${RESET}`)
+		} else if (accountName) {
 			const acctText = `Logged in as ${accountName} `
 			const statusHintLen = 52
 			if (w > statusHintLen + acctText.length) {

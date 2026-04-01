@@ -8,7 +8,7 @@ import { createClient } from "../src/ytdlp.js"
 import { setClient as setResolveClient } from "../src/resolve.js"
 import { parseArgs, cookieArgsFromOptions, validateOptions } from "../src/cli/args.js"
 import { printHelp } from "../src/cli/help.js"
-import { VERSION, checkForUpdates } from "../src/cli/update-check.js"
+import { VERSION, checkForUpdates, getUpdateNotice } from "../src/cli/update-check.js"
 import { cmdLogin, cmdBrowse, cmdDefaultBrowse, cmdPlayUrl, cmdPlayFile } from "../src/cli/commands.js"
 
 process.on("uncaughtException", (err) => {
@@ -77,5 +77,8 @@ if (isURL) {
 } else {
 	await cmdPlayFile(input, playOptions)
 }
+
+const notice = getUpdateNotice()
+if (notice) console.error(`\n  ${notice}\n`)
 
 process.exit(0)

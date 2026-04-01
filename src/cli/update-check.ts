@@ -70,10 +70,12 @@ function writeCache(latest: string): void {
 	} catch {}
 }
 
-function printUpdateNotice(latest: string): void {
+let updateNotice: string | null = null
+
+function buildNotice(latest: string): string {
 	const method = getInstallMethod()
 	const cmd = method === "brew" ? "brew update && brew upgrade pixeltube" : "npm i -g pixeltube"
-	process.stderr.write(`\n  Update available: ${VERSION} → ${latest}\n  Run: ${cmd}\n\n`)
+	return `Update available: ${VERSION} → ${latest}  |  ${cmd}`
 }
 
 async function fetchLatest(): Promise<void> {
@@ -81,16 +83,20 @@ async function fetchLatest(): Promise<void> {
 	const data = (await res.json()) as { version: string }
 	const latest = data.version
 	writeCache(latest)
-	if (isNewer(VERSION, latest)) printUpdateNotice(latest)
+	if (isNewer(VERSION, latest)) updateNotice = buildNotice(latest)
 }
 
 export function checkForUpdates(): void {
 	try {
 		const cache = readCache()
 		if (cache && Date.now() - cache.checkedAt < CACHE_TTL) {
-			if (isNewer(VERSION, cache.latest)) printUpdateNotice(cache.latest)
+			if (isNewer(VERSION, cache.latest)) updateNotice = buildNotice(cache.latest)
 			return
 		}
 	} catch {}
 	fetchLatest().catch(() => {})
+}
+
+export function getUpdateNotice(): string | null {
+	return updateNotice
 }

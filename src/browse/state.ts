@@ -1,7 +1,7 @@
 // Browse navigation state — stack-based screen management
 
 import type { BrowseState, BrowseScreenState, BrowseSelection } from "../types.js"
-import { enterRawMode, exitRawMode, onKey } from "../tui/terminal.js"
+import { enterRawMode, exitRawMode, onKey, clearScreen } from "../tui/terminal.js"
 import { drawTitleBar, drawStatusBar, clearContent, startSpinner } from "../tui/screen.js"
 
 export function createBrowseState(): BrowseState {
@@ -67,6 +67,7 @@ export function createBrowseState(): BrowseState {
 	function resume(resizeHandler?: () => void): Promise<BrowseSelection | null> {
 		enterRawMode()
 		if (resizeHandler) process.stdout.on("resize", resizeHandler)
+		clearScreen()
 		renderCurrent()
 		return new Promise((resolve) => {
 			resolvePromise = resolve

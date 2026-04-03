@@ -112,11 +112,13 @@ export async function showPlaylistList(
 	}
 }
 
+const PLAYLIST_PAGE_SIZE = 50
+
 export async function showPlaylistVideos(
 	browseState: BrowseState,
 	headerPrefix: string,
 	playlist: Playlist,
-	fetchPlaylistVideos: (id: string) => Promise<Video[]>,
+	fetchPlaylistVideos: (id: string, start: number, end: number) => Promise<Video[]>,
 	onSelect: (video: Video, context: PlaylistContext) => void,
 ): Promise<void> {
 	clearContent()
@@ -130,19 +132,40 @@ export async function showPlaylistVideos(
 	})
 
 	try {
-		const videos = await fetchPlaylistVideos(playlist.id)
+		const videos = await fetchPlaylistVideos(playlist.id, 1, PLAYLIST_PAGE_SIZE)
 		spinner.stop()
 		browseState.popState()
 		if (videos.length === 0) {
 			return browseState.flashMessage("No videos found")
 		}
 
+		let nextStart = PLAYLIST_PAGE_SIZE + 1
+		const allVideos = [...videos]
+
 		const listView = createListView({
 			items: videos,
 			formatItem: formatVideoItem,
-			onSelect: (video: Video, idx: number) => onSelect(video, { videos, index: idx }),
+			onSelect: (video: Video, idx: number) => onSelect(video, { videos: allVideos, index: idx }),
 			onBack: () => browseState.popState(),
 			spacing: 1,
+			hasMore: true,
+			onLoadMore: () => {
+				const start = nextStart
+				const end = start + PLAYLIST_PAGE_SIZE - 1
+				fetchPlaylistVideos(playlist.id, start, end)
+					.then((moreVideos) => {
+						allVideos.push(...moreVideos)
+						listView.appendItems(moreVideos)
+						if (moreVideos.length === 0) {
+							listView.setHasMore(false)
+						}
+						nextStart = end + 1
+					})
+					.catch(() => {
+						listView.setHasMore(false)
+						listView.appendItems([])
+					})
+			},
 		})
 
 		browseState.pushState({

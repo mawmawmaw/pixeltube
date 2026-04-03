@@ -162,6 +162,8 @@ export interface ListView {
 	setItems<T>(newItems: T[]): void
 	getItems<T>(): T[]
 	getSelected<T>(): T
+	appendItems<T>(newItems: T[]): void
+	setHasMore(val: boolean): void
 }
 
 // --- Spinner ---

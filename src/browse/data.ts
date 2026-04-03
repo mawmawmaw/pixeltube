@@ -112,6 +112,24 @@ export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> 
 	return enrichVideos(raw)
 }
 
+export async function fetchPlaylistVideosPage(
+	playlistId: string,
+	start: number,
+	end: number,
+): Promise<Video[]> {
+	const raw = await runYtDlp([
+		"--flat-playlist",
+		"--playlist-start",
+		String(start),
+		"--playlist-end",
+		String(end),
+		"--print",
+		VIDEO_JSON,
+		`https://www.youtube.com/playlist?list=${playlistId}`,
+	])
+	return enrichVideos(raw)
+}
+
 export async function fetchSubscriptions(): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",

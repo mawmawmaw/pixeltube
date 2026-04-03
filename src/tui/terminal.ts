@@ -73,6 +73,10 @@ export function parseKey(data: string): string | null {
 	if (data === "\x1b[B") return "down"
 	if (data === "\x1b[C") return "right"
 	if (data === "\x1b[D") return "left"
+	if (data === "\x1b[5~") return "pageup"
+	if (data === "\x1b[6~") return "pagedown"
+	if (data === "\x1b[H" || data === "\x1b[1~") return "home"
+	if (data === "\x1b[F" || data === "\x1b[4~") return "end"
 	if (data === "\t") return "tab"
 	if (data.length === 1 && data.charCodeAt(0) >= 32 && data.charCodeAt(0) <= 126) return data.toLowerCase()
 	return null

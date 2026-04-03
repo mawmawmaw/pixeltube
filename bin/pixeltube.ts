@@ -11,6 +11,9 @@ import { printHelp } from "../src/cli/help.js"
 import { VERSION, checkForUpdates, getUpdateNotice } from "../src/cli/update-check.js"
 import { cmdLogin, cmdBrowse, cmdDefaultBrowse, cmdPlayUrl, cmdPlayFile } from "../src/cli/commands.js"
 
+process.on("exit", () => emergencyRestore())
+process.on("SIGINT", () => process.exit(0))
+process.on("SIGTERM", () => process.exit(0))
 process.on("uncaughtException", (err) => {
 	emergencyRestore()
 	console.error("Unexpected error:", err.message)

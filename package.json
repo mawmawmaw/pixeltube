@@ -1,11 +1,13 @@
 {
 	"name": "pixeltube",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"description": "Play videos in the terminal as colored pixel art",
 	"license": "MIT",
 	"author": "Mauricio Garcia de Ceca Garcia (0xMaw - maw.dev)",
 	"type": "module",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"bin": {
 		"pixeltube": "./dist/bin/pixeltube.js"
 	},
@@ -13,11 +15,20 @@
 		"type": "git",
 		"url": "https://github.com/mawmawmaw/pixeltube.git"
 	},
-	"keywords": ["youtube", "terminal", "video", "pixel-art", "cli", "tui"],
+	"keywords": [
+		"youtube",
+		"terminal",
+		"video",
+		"pixel-art",
+		"cli",
+		"tui"
+	],
 	"engines": {
 		"node": ">=18"
 	},
 	"scripts": {
+		"dev": "node src/bin/pixeltube.ts",
+		"start": "node dist/bin/pixeltube.js",
 		"build": "tsc && chmod +x dist/bin/pixeltube.js",
 		"prepare": "tsc && chmod +x dist/bin/pixeltube.js",
 		"test": "vitest run",

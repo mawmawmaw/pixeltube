@@ -5,7 +5,7 @@ import { enterRawMode, setTitle, clearScreen } from "../tui/terminal.js"
 import { drawTitleBar, startSpinner, clearContent, drawStatusBar } from "../tui/screen.js"
 import {
 	fetchPlaylists,
-	fetchPlaylistVideos,
+	fetchPlaylistVideosPage,
 	fetchPlaylistCount,
 	fetchSubscriptions,
 	fetchRecommendations,
@@ -95,7 +95,7 @@ export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseR
 		headerPrefix,
 		selectVideo,
 		(playlist) => {
-			showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideos, selectVideo)
+			showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideosPage, selectVideo)
 		},
 		(channelId, channelTitle) => {
 			showVideoList(state, headerPrefix(), channelTitle, () => fetchChannelVideos(channelId), selectVideo)
@@ -105,7 +105,7 @@ export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseR
 	function onMenuAction(action: string): void {
 		if (action === "playlists") {
 			showPlaylistList(state, headerPrefix(), fetchPlaylists, fetchPlaylistCount, (playlist) => {
-				showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideos, selectVideo)
+				showPlaylistVideos(state, headerPrefix(), playlist, fetchPlaylistVideosPage, selectVideo)
 			})
 		} else if (action === "subscriptions") {
 			showVideoList(state, headerPrefix(), "Subscriptions", fetchSubscriptions, selectVideo)
@@ -153,7 +153,6 @@ export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseR
 		resume: () => {
 			enterRawMode()
 			process.stdout.on("resize", resizeHandler)
-			state.renderCurrent()
 			return state.resume(resizeHandler)
 		},
 	}

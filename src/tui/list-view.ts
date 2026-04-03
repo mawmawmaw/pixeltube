@@ -5,6 +5,8 @@ import { moveTo, cols, syncStart, syncEnd } from "./terminal.js"
 import { contentRows } from "./screen.js"
 import { theme } from "./theme.js"
 
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
 function visLen(str: string): number {
 	return str.replace(/\x1b\[[0-9;]*m/g, "").length
 }
@@ -15,16 +17,24 @@ export function createListView({
 	onSelect,
 	onBack,
 	spacing = 0,
+	onLoadMore,
+	hasMore: initialHasMore = false,
 }: {
 	items?: any[]
 	formatItem?: (item: any, width: number) => string
 	onSelect?: (item: any, index: number) => void
 	onBack?: () => void
 	spacing?: number
+	onLoadMore?: () => void
+	hasMore?: boolean
 }): ListView {
 	let selectedIndex: number = 0
 	let scrollOffset: number = 0
 	let currentItems: any[] = items
+	let hasMore: boolean = initialHasMore
+	let loadingMore: boolean = false
+	let spinnerFrame: number = 0
+	let spinnerInterval: ReturnType<typeof setInterval> | null = null
 
 	function lineHeight(): number {
 		const r = contentRows()
@@ -38,8 +48,48 @@ export function createListView({
 	function clampScroll(): void {
 		const vis = visibleItems()
 		if (selectedIndex < scrollOffset) scrollOffset = selectedIndex
-		if (selectedIndex >= scrollOffset + vis) scrollOffset = selectedIndex - vis + 1
+		const reserve = loadingMore && selectedIndex >= currentItems.length - 1 ? 1 : 0
+		if (selectedIndex + reserve >= scrollOffset + vis) scrollOffset = selectedIndex + reserve - vis + 1
 		if (scrollOffset < 0) scrollOffset = 0
+	}
+
+	function startSpinnerTimer(): void {
+		if (spinnerInterval) return
+		spinnerInterval = setInterval(() => {
+			spinnerFrame++
+			renderSpinnerRow()
+		}, 80)
+	}
+
+	function stopSpinnerTimer(): void {
+		if (spinnerInterval) {
+			clearInterval(spinnerInterval)
+			spinnerInterval = null
+		}
+	}
+
+	function renderSpinnerRow(): void {
+		if (!loadingMore) return
+		const w = cols()
+		const vis = visibleItems()
+		const lastVisIdx = scrollOffset + vis - 1
+		if (lastVisIdx < currentItems.length) return
+		const slotPos = currentItems.length - scrollOffset
+		if (slotPos < 0 || slotPos >= vis) return
+		const lh = lineHeight()
+		const row = 2 + slotPos * lh
+		const frame = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]
+		const msg = `   ${theme.dim}${theme.accentBold}${frame}${theme.reset}${theme.dim} Loading more...${theme.reset}`
+		moveTo(row, 1)
+		process.stdout.write(msg + " ".repeat(Math.max(0, w - 20)))
+	}
+
+	function checkLoadMore(): void {
+		if (hasMore && !loadingMore && onLoadMore && selectedIndex >= currentItems.length - 10) {
+			loadingMore = true
+			startSpinnerTimer()
+			onLoadMore()
+		}
 	}
 
 	function render(): void {
@@ -69,6 +119,10 @@ export function createListView({
 					const line = "   " + text + " ".repeat(pad)
 					process.stdout.write(line)
 				}
+			} else if (loadingMore && idx === currentItems.length) {
+				const frame = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]
+				const msg = `   ${theme.dim}${theme.accentBold}${frame}${theme.reset}${theme.dim} Loading more...${theme.reset}`
+				process.stdout.write(msg + " ".repeat(Math.max(0, w - 20)))
 			} else {
 				process.stdout.write(" ".repeat(w))
 			}
@@ -81,9 +135,12 @@ export function createListView({
 		}
 
 		if (currentItems.length > vis) {
-			const indicator = `${theme.dim} ${scrollOffset + 1}-${Math.min(scrollOffset + vis, currentItems.length)} of ${currentItems.length}${theme.reset}`
-			moveTo(2, w - 20)
-			process.stdout.write(indicator)
+			const label = loadingMore
+				? `${theme.dim} Loading more...${theme.reset}`
+				: `${theme.dim} ${scrollOffset + 1}-${Math.min(scrollOffset + vis, currentItems.length)} of ${currentItems.length}${hasMore ? "+" : ""}${theme.reset}`
+			const labelLen = visLen(label)
+			moveTo(2, Math.max(1, w - labelLen))
+			process.stdout.write(label)
 		}
 
 		syncEnd()
@@ -95,6 +152,21 @@ export function createListView({
 			render()
 		} else if (key === "down") {
 			if (selectedIndex < currentItems.length - 1) selectedIndex++
+			checkLoadMore()
+			render()
+		} else if (key === "pageup") {
+			selectedIndex = Math.max(0, selectedIndex - visibleItems())
+			render()
+		} else if (key === "pagedown") {
+			selectedIndex = Math.min(currentItems.length - 1, selectedIndex + visibleItems())
+			checkLoadMore()
+			render()
+		} else if (key === "home") {
+			selectedIndex = 0
+			render()
+		} else if (key === "end") {
+			selectedIndex = currentItems.length - 1
+			checkLoadMore()
 			render()
 		} else if (key === "enter" || key === "right") {
 			if (currentItems.length > 0 && onSelect) {
@@ -111,5 +183,25 @@ export function createListView({
 		scrollOffset = 0
 	}
 
-	return { render, handleKey, setItems, getItems: () => currentItems, getSelected: () => currentItems[selectedIndex] }
+	function appendItems(newItems: any[]): void {
+		currentItems = currentItems.concat(newItems)
+		loadingMore = false
+		stopSpinnerTimer()
+		render()
+	}
+
+	function setHasMore(val: boolean): void {
+		hasMore = val
+		if (!val) loadingMore = false
+	}
+
+	return {
+		render,
+		handleKey,
+		setItems,
+		getItems: () => currentItems,
+		getSelected: () => currentItems[selectedIndex],
+		appendItems,
+		setHasMore,
+	}
 }

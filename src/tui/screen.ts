@@ -8,8 +8,10 @@ const SPINNER_FRAMES: string[] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦
 
 export function drawTitleBar(text: string): void {
 	const w: number = cols()
+	const maxLen = w - 2
+	const display = text.length > maxLen ? text.slice(0, maxLen - 3) + "..." : text
 	moveTo(1, 1)
-	process.stdout.write(`\x1b[7m${theme.bold} ${text.padEnd(w - 1)}${theme.reset}`)
+	process.stdout.write(`\x1b[7m${theme.bold} ${display.padEnd(w - 1)}${theme.reset}`)
 }
 
 export function drawStatusBar(text: string): void {
@@ -38,9 +40,11 @@ export function startSpinner(message: string = "Loading"): Spinner {
 
 	function draw(): void {
 		if (stopped) return
+		const maxMsg = w - 6
+		const safeMsg = message.length > maxMsg ? message.slice(0, maxMsg - 3) + "..." : message
 		const spinner: string = `${theme.accentBold}${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]}${theme.reset}`
-		const text: string = ` ${spinner} ${message}`
-		const padded: string = " ".repeat(Math.max(0, Math.floor((w - message.length - 4) / 2))) + text
+		const text: string = ` ${spinner} ${safeMsg}`
+		const padded: string = " ".repeat(Math.max(0, Math.floor((w - safeMsg.length - 4) / 2))) + text
 		moveTo(midRow, 1)
 		process.stdout.write("\x1b[2K" + padded)
 		frame++

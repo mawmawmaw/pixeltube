@@ -39,8 +39,8 @@ export function createSearchScreen(
 			type: "SEARCH_INPUT",
 			statusHint: " type query | enter: search | tab: filters | esc: back",
 			listView: null,
+			render: renderInput,
 		})
-		renderInput()
 	}
 
 	function renderInput(): void {
@@ -59,11 +59,7 @@ export function createSearchScreen(
 		process.stdout.write(prompt.length > w + 20 ? prompt.slice(0, w) : prompt)
 
 		const fields = ["sort", "duration", "type"]
-		const labels = [
-			`Sort: ${searchFilters.sort}`,
-			`Duration: ${searchFilters.duration}`,
-			`Type: ${searchFilters.type}`,
-		]
+		const labels = [`Sort: ${searchFilters.sort}`, `Duration: ${searchFilters.duration}`, `Type: ${searchFilters.type}`]
 		for (let i = 0; i < fields.length; i++) {
 			moveTo(r + 2 + i, 3)
 			if (filterMode && filterField === i) {
@@ -106,7 +102,9 @@ export function createSearchScreen(
 				formatItem: formatSearchResult,
 				onSelect: (item: SearchResult) => {
 					if (item.resultType === "video") {
-						const videoResults = results.filter((r): r is SearchResult & { resultType: "video" } => r.resultType === "video")
+						const videoResults = results.filter(
+							(r): r is SearchResult & { resultType: "video" } => r.resultType === "video",
+						)
 						const videoIdx = videoResults.findIndex((r) => r.id === item.id)
 						const videos: Video[] = videoResults.map((r) => ({
 							id: r.id,

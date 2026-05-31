@@ -34,7 +34,7 @@ async function ytDlpMeta(url: string): Promise<VideoMeta> {
 				"b[height<=720]/bv*[height<=720]+ba/b/bv*+ba",
 				url,
 			],
-			30000,
+			{ timeout: 30000 },
 		)
 		const lines = stdout.split("\n").filter(Boolean)
 		if (lines.length < 4) throw new Error("yt-dlp returned unexpected output")
@@ -53,7 +53,9 @@ async function ytDlpMeta(url: string): Promise<VideoMeta> {
 
 async function ytDlpStreamUrl(url: string): Promise<string> {
 	try {
-		const stdout = await client.run(["-f", "b[height<=720]/bv*[height<=720]+ba/b/bv*+ba", "-g", url], 30000)
+		const stdout = await client.run(["-f", "b[height<=720]/bv*[height<=720]+ba/b/bv*+ba", "-g", url], {
+			timeout: 30000,
+		})
 		const urls = stdout.split("\n").filter(Boolean)
 		if (urls.length === 0) throw new Error("yt-dlp returned no URLs")
 		return urls[0]
@@ -68,7 +70,7 @@ function ytDlpDownload(url: string): Promise<{ tempPath: string; tempDir: string
 	return new Promise((resolve, reject) => {
 		const proc = client.spawn(
 			["-f", "b[height<=720]/bv*[height<=720]+ba/b/bv*+ba", "--remux-video", "mp4", "-o", tempPath, url],
-			{ stdio: ["ignore", "pipe", "pipe"] },
+			{ spawn: { stdio: ["ignore", "pipe", "pipe"] } },
 		)
 
 		proc.stderr!.on("data", (chunk: Buffer) => {

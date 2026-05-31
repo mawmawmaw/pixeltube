@@ -11,6 +11,8 @@ export interface CliOptions {
 	download: boolean
 	audio: boolean
 	cookies: string | null
+	// String to allow yt-dlp's BROWSER[+KEYRING][:PROFILE][::CONTAINER] syntax
+	browser: string | null
 }
 
 export interface ParsedArgs {
@@ -57,9 +59,26 @@ export interface PlaylistContext {
 
 // --- yt-dlp ---
 
+export interface YtDlpRunOptions {
+	timeout?: number
+	auth?: boolean
+	verbose?: boolean
+}
+
+export interface YtDlpRunResult {
+	stdout: string
+	stderr: string
+}
+
+export interface YtDlpSpawnOptions {
+	auth?: boolean
+	spawn?: SpawnOptions
+}
+
 export interface YtDlpClient {
-	run(args: string[], timeout?: number): Promise<string>
-	spawn(args: string[], options?: SpawnOptions): ChildProcess
+	run(args: string[], options?: YtDlpRunOptions): Promise<string>
+	runDetailed(args: string[], options?: YtDlpRunOptions): Promise<YtDlpRunResult>
+	spawn(args: string[], options?: YtDlpSpawnOptions): ChildProcess
 	cookieArgs: string[]
 }
 

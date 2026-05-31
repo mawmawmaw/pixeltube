@@ -11,8 +11,8 @@ export function setClient(c: YtDlpClient): void {
 	client = c
 }
 
-function runYtDlp(args: string[], timeout = 60000): Promise<string> {
-	return client.run(args, timeout)
+function runYtDlp(args: string[], opts: { timeout?: number; auth?: boolean } = {}): Promise<string> {
+	return client.run(args, { timeout: opts.timeout ?? 60000, auth: opts.auth ?? false })
 }
 
 function parseJsonLines(raw: string): Record<string, unknown>[] {
@@ -64,7 +64,7 @@ export async function fetchAccountName(): Promise<string | null> {
 				"%(playlist_uploader)s",
 				"https://www.youtube.com/playlist?list=WL",
 			],
-			15000,
+			{ timeout: 15000, auth: true },
 		)
 		const name = raw.split("\n")[0] || ""
 		return name && name !== "NA" ? name : null
@@ -74,7 +74,9 @@ export async function fetchAccountName(): Promise<string | null> {
 }
 
 export async function fetchPlaylists(): Promise<Playlist[]> {
-	const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, "https://www.youtube.com/feed/playlists"])
+	const raw = await runYtDlp(["--flat-playlist", "--print", VIDEO_JSON, "https://www.youtube.com/feed/playlists"], {
+		auth: true,
+	})
 	return parseJsonLines(raw).map((d) => ({
 		title: clean(d.title) || "Untitled",
 		id: (d.id as string) || "",
@@ -93,7 +95,7 @@ export async function fetchPlaylistCount(playlistId: string): Promise<number | n
 				"%(playlist_count)s",
 				`https://www.youtube.com/playlist?list=${playlistId}`,
 			],
-			10000,
+			{ timeout: 10000 },
 		)
 		const n = Number(raw.split("\n")[0])
 		return isNaN(n) ? null : n
@@ -112,11 +114,7 @@ export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> 
 	return enrichVideos(raw)
 }
 
-export async function fetchPlaylistVideosPage(
-	playlistId: string,
-	start: number,
-	end: number,
-): Promise<Video[]> {
+export async function fetchPlaylistVideosPage(playlistId: string, start: number, end: number): Promise<Video[]> {
 	const raw = await runYtDlp([
 		"--flat-playlist",
 		"--playlist-start",
@@ -131,38 +129,26 @@ export async function fetchPlaylistVideosPage(
 }
 
 export async function fetchSubscriptions(): Promise<Video[]> {
-	const raw = await runYtDlp([
-		"--flat-playlist",
-		"--playlist-end",
-		"30",
-		"--print",
-		VIDEO_JSON,
-		"https://www.youtube.com/feed/subscriptions",
-	])
+	const raw = await runYtDlp(
+		["--flat-playlist", "--playlist-end", "30", "--print", VIDEO_JSON, "https://www.youtube.com/feed/subscriptions"],
+		{ auth: true },
+	)
 	return enrichVideos(raw)
 }
 
 export async function fetchRecommendations(): Promise<Video[]> {
-	const raw = await runYtDlp([
-		"--flat-playlist",
-		"--playlist-end",
-		"30",
-		"--print",
-		VIDEO_JSON,
-		"https://www.youtube.com/feed/recommended",
-	])
+	const raw = await runYtDlp(
+		["--flat-playlist", "--playlist-end", "30", "--print", VIDEO_JSON, "https://www.youtube.com/feed/recommended"],
+		{ auth: true },
+	)
 	return enrichVideos(raw)
 }
 
 export async function fetchHistory(): Promise<Video[]> {
-	const raw = await runYtDlp([
-		"--flat-playlist",
-		"--playlist-end",
-		"30",
-		"--print",
-		VIDEO_JSON,
-		"https://www.youtube.com/feed/history",
-	])
+	const raw = await runYtDlp(
+		["--flat-playlist", "--playlist-end", "30", "--print", VIDEO_JSON, "https://www.youtube.com/feed/history"],
+		{ auth: true },
+	)
 	return enrichVideos(raw)
 }
 

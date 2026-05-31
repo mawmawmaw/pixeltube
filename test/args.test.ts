@@ -1,5 +1,21 @@
-import { describe, it, expect } from "vitest"
-import { parseArgs, cookieArgsFromOptions, validateOptions } from "../src/cli/args.js"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+
+const detectBrowsersMock = vi.fn<() => { available: string[]; preferred: string | null }>()
+
+vi.mock("../src/browser-detect.js", async () => {
+	const actual = await vi.importActual<typeof import("../src/browser-detect.js")>("../src/browser-detect.js")
+	return {
+		...actual,
+		detectBrowsers: () => detectBrowsersMock(),
+	}
+})
+
+const { parseArgs, cookieArgsFromOptions, validateOptions } = await import("../src/cli/args.js")
+
+beforeEach(() => {
+	detectBrowsersMock.mockReset()
+	detectBrowsersMock.mockReturnValue({ available: [], preferred: null })
+})
 
 describe("parseArgs", () => {
 	it("parses help subcommand", () => {
@@ -58,6 +74,23 @@ describe("parseArgs", () => {
 		expect(result.options.cookies).toBe("/tmp/cookies.txt")
 	})
 
+	it("parses --browser option", () => {
+		const result = parseArgs(["node", "pixeltube", "video.mp4", "--browser", "firefox"])
+		expect(result.options.browser).toBe("firefox")
+	})
+
+	it("parses --browser with browse subcommand", () => {
+		const result = parseArgs(["node", "pixeltube", "browse", "--browser", "chromium"])
+		expect(result.subcommand).toBe("browse")
+		expect(result.options.browser).toBe("chromium")
+	})
+
+	it("parses --browser with login subcommand", () => {
+		const result = parseArgs(["node", "pixeltube", "login", "--browser", "brave"])
+		expect(result.subcommand).toBe("login")
+		expect(result.options.browser).toBe("brave")
+	})
+
 	it("returns null input when no args", () => {
 		const result = parseArgs(["node", "pixeltube"])
 		expect(result.input).toBeNull()
@@ -66,12 +99,26 @@ describe("parseArgs", () => {
 })
 
 describe("cookieArgsFromOptions", () => {
-	it("returns browser cookies by default", () => {
-		expect(cookieArgsFromOptions({})).toEqual(["--cookies-from-browser", "chrome"])
-	})
-
 	it("returns file cookies when specified", () => {
 		expect(cookieArgsFromOptions({ cookies: "/tmp/c.txt" })).toEqual(["--cookies", "/tmp/c.txt"])
+	})
+
+	it("returns browser cookies when --browser is specified", () => {
+		expect(cookieArgsFromOptions({ browser: "firefox" })).toEqual(["--cookies-from-browser", "firefox"])
+	})
+
+	it("prefers --cookies over --browser", () => {
+		expect(cookieArgsFromOptions({ cookies: "/tmp/c.txt", browser: "chrome" })).toEqual(["--cookies", "/tmp/c.txt"])
+	})
+
+	it("falls back to detected browser when no flags set", () => {
+		detectBrowsersMock.mockReturnValue({ available: ["chromium"], preferred: "chromium" })
+		expect(cookieArgsFromOptions({})).toEqual(["--cookies-from-browser", "chromium"])
+	})
+
+	it("returns empty array when nothing detected", () => {
+		detectBrowsersMock.mockReturnValue({ available: [], preferred: null })
+		expect(cookieArgsFromOptions({})).toEqual([])
 	})
 })
 
@@ -90,5 +137,33 @@ describe("validateOptions", () => {
 		const errors = validateOptions({ scale: 0 })
 		expect(errors.length).toBe(1)
 		expect(errors[0]).toContain("scale")
+	})
+
+	it("catches invalid --browser value", () => {
+		const errors = validateOptions({ browser: "opera" })
+		expect(errors.length).toBe(1)
+		expect(errors[0]).toContain("--browser")
+	})
+
+	it("accepts valid --browser value", () => {
+		expect(validateOptions({ browser: "firefox" })).toEqual([])
+	})
+
+	it("accepts --browser with keyring suffix", () => {
+		expect(validateOptions({ browser: "chromium+gnomekeyring" })).toEqual([])
+	})
+
+	it("accepts --browser with profile", () => {
+		expect(validateOptions({ browser: "chrome:Default" })).toEqual([])
+	})
+
+	it("accepts --browser with keyring and profile", () => {
+		expect(validateOptions({ browser: "chromium+gnomekeyring:Profile1" })).toEqual([])
+	})
+
+	it("rejects --browser when base name is invalid", () => {
+		const errors = validateOptions({ browser: "opera+gnomekeyring" })
+		expect(errors.length).toBe(1)
+		expect(errors[0]).toContain("--browser")
 	})
 })

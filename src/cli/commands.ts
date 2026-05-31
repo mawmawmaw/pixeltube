@@ -8,11 +8,17 @@ import { computeDimensions, createDecoder } from "../decoder.js"
 import { play } from "../player.js"
 import { enterAltScreen, exitAltScreen, hideCursor, clearScreen } from "../tui/terminal.js"
 
+function ffmpegInstallHint(): string {
+	if (process.platform === "darwin") return "brew install ffmpeg"
+	if (process.platform === "win32") return "winget install ffmpeg"
+	return "your package manager (e.g. apt/pacman/dnf install ffmpeg) — see https://ffmpeg.org/download.html"
+}
+
 function checkFfmpeg(): void {
 	try {
 		execFileSync("ffmpeg", ["-version"], { stdio: "ignore" })
 	} catch {
-		console.error("ffmpeg not found. Install it: brew install ffmpeg")
+		console.error(`ffmpeg not found. Install it with ${ffmpegInstallHint()}.`)
 		process.exit(1)
 	}
 	try {
@@ -67,7 +73,8 @@ async function playVideo(url: string, opts: PlayVideoOptions = {}): Promise<Exit
 
 export async function cmdLogin(ytdlp: YtDlpClient, cookieArgs: string[]): Promise<void> {
 	const { verifyLogin } = await import("../login.js")
-	await verifyLogin(ytdlp, cookieArgs)
+	const ok = await verifyLogin(ytdlp, cookieArgs)
+	if (!ok) process.exit(1)
 	console.log("\nLaunching browse...\n")
 	await cmdBrowse(ytdlp, { loggedIn: true })
 }
@@ -183,6 +190,11 @@ export async function cmdDefaultBrowse(ytdlp: YtDlpClient, cookieArgs: string[])
 	const loggedIn = await isLoggedIn(ytdlp)
 	spinner.stop()
 	hideLoading()
+
+	if (!loggedIn && cookieArgs.length > 0) {
+		console.warn("Could not access cookies — continuing in search-only mode.")
+		console.warn("Run `pixeltube login` for diagnostic details.\n")
+	}
 
 	await cmdBrowse(ytdlp, { loggedIn })
 }

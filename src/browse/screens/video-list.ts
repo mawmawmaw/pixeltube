@@ -5,6 +5,14 @@ import { drawTitleBar, startSpinner, drawStatusBar, clearContent } from "../../t
 import { createListView } from "../../tui/list-view.js"
 import { formatVideoItem, formatPlaylistItem } from "../format.js"
 
+function firstLine(msg: string): string {
+	const lines = msg
+		.split("\n")
+		.map((l) => l.trim())
+		.filter(Boolean)
+	return lines.find((l) => l.startsWith("ERROR:")) ?? lines[0] ?? msg
+}
+
 export async function showVideoList(
 	browseState: BrowseState,
 	headerPrefix: string,
@@ -25,10 +33,10 @@ export async function showVideoList(
 	try {
 		const videos = await fetchFn()
 		spinner.stop()
-		browseState.popState()
 		if (videos.length === 0) {
 			return browseState.flashMessage(`No ${title.toLowerCase()} found`)
 		}
+		browseState.popState()
 
 		const listView = createListView({
 			items: videos,
@@ -44,8 +52,7 @@ export async function showVideoList(
 		})
 	} catch (err) {
 		spinner.stop()
-		browseState.popState()
-		browseState.flashMessage(`Error: ${(err as Error).message}`)
+		browseState.flashMessage(`Error: ${firstLine((err as Error).message)}`, 6000)
 	}
 }
 
@@ -69,10 +76,10 @@ export async function showPlaylistList(
 	try {
 		const playlists = await fetchPlaylists()
 		spinner.stop()
-		browseState.popState()
 		if (playlists.length === 0) {
 			return browseState.flashMessage("No playlists found")
 		}
+		browseState.popState()
 
 		const listView: ListView = createListView({
 			items: playlists,
@@ -107,8 +114,7 @@ export async function showPlaylistList(
 		})()
 	} catch (err) {
 		spinner.stop()
-		browseState.popState()
-		browseState.flashMessage(`Error: ${(err as Error).message}`)
+		browseState.flashMessage(`Error: ${firstLine((err as Error).message)}`, 6000)
 	}
 }
 
@@ -134,10 +140,10 @@ export async function showPlaylistVideos(
 	try {
 		const videos = await fetchPlaylistVideos(playlist.id, 1, PLAYLIST_PAGE_SIZE)
 		spinner.stop()
-		browseState.popState()
 		if (videos.length === 0) {
 			return browseState.flashMessage("No videos found")
 		}
+		browseState.popState()
 
 		let nextStart = PLAYLIST_PAGE_SIZE + 1
 		const allVideos = [...videos]
@@ -174,7 +180,6 @@ export async function showPlaylistVideos(
 		})
 	} catch (err) {
 		spinner.stop()
-		browseState.popState()
-		browseState.flashMessage(`Error: ${(err as Error).message}`)
+		browseState.flashMessage(`Error: ${firstLine((err as Error).message)}`, 6000)
 	}
 }

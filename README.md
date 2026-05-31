@@ -41,11 +41,21 @@ Pixeltube lets you link your Youtube account using cookies and browse your subsc
 
 ## Requirements
 
-| Tool            | Install                          | Purpose                      |
-| --------------- | -------------------------------- | ---------------------------- |
-| **Node.js** 18+ | [nodejs.org](https://nodejs.org) | Runtime                      |
-| **FFmpeg**      | `brew install ffmpeg`            | Video decoding & audio       |
-| **yt-dlp**      | `brew install yt-dlp`            | YouTube streaming & browsing |
+| Tool            | Purpose                                     |
+| --------------- | ------------------------------------------- |
+| **Node.js** 18+ | Runtime ([nodejs.org](https://nodejs.org))  |
+| **FFmpeg**      | Video decoding & audio                      |
+| **yt-dlp**      | YouTube streaming & browsing                |
+
+Install FFmpeg and yt-dlp:
+
+| Platform      | Command                              |
+| ------------- | ------------------------------------ |
+| macOS         | `brew install ffmpeg yt-dlp`         |
+| Debian/Ubuntu | `sudo apt install ffmpeg yt-dlp`     |
+| Arch          | `sudo pacman -S ffmpeg yt-dlp`       |
+| Fedora        | `sudo dnf install ffmpeg yt-dlp`     |
+| Windows       | `winget install ffmpeg yt-dlp`       |
 
 > Requires an interactive terminal (TTY) with truecolor support. Works best with iTerm2, kitty, WezTerm, Alacritty, or Ghostty. Falls back to 256-color on older terminals.
 
@@ -108,7 +118,9 @@ pixeltube 'https://www.youtube.com/playlist?list=PLrAXtmErZgOe...'
 --scale, -s N      Scale factor (0.5 = chunky, 1.0 = fill terminal)
 --dl               Download video first (slower but reliable)
 --no-audio         Disable audio playback
---cookies FILE     Use exported cookies.txt instead of Chrome cookies
+--browser NAME     Read cookies from a specific browser
+                   (chrome | chromium | brave | edge | firefox)
+--cookies FILE     Use an exported cookies.txt file instead of a browser
 --version, -V      Print version and exit
 ```
 
@@ -140,19 +152,41 @@ All player controls are case-insensitive.
 
 ## Authentication
 
-**Search and playback work without logging in.** When you launch `pixeltube` without authentication, you'll see a search-only browse mode.
+**Search and public playback work without logging in.** If no browser cookies are available, pixeltube falls back to a search-only mode automatically.
 
-To access your recommendations, subscriptions, playlists, and history, log in with your Chrome browser cookies. No API keys needed.
+To access your recommendations, subscriptions, playlists, and history, pixeltube reads cookies from a locally installed browser. No API keys needed.
+
+By default pixeltube auto-detects the first installed browser in this order:
+
+```
+chrome → chromium → brave → edge → firefox
+```
 
 ```bash
-# Default: reads cookies from Chrome (macOS Keychain prompt)
+# Auto-detect (default)
 pixeltube login
 
-# Alternative: use an exported cookies.txt file
+# Pick a specific browser
+pixeltube login --browser firefox
+pixeltube browse --browser chromium
+
+# Use an exported cookies.txt file
 pixeltube login --cookies ~/cookies.txt
 ```
 
-> **Notes:** You must be logged in to YouTube on Chrome for cookie access to work. You may also be prompted to grant access to the cookie vault to read the session cookie.
+> **Notes:**
+> - **Linux + Chromium-family** (chrome, chromium, brave, edge): pixeltube extracts cookies directly from the browser's SQLite DB and gnome-keyring, so the browser can stay open. Requires `secret-tool` (libsecret) and `sqlite3` to be on PATH (both are usually pre-installed).
+> - **macOS / Windows / Firefox**: pixeltube delegates to yt-dlp's `--cookies-from-browser`. On macOS you may be prompted for your Keychain password. On Windows the browser must be fully closed.
+
+### Troubleshooting
+
+If login fails, run `pixeltube login` to see the actual error. Common Linux issues:
+
+- gnome-keyring (or your distro's secret service) must be running and unlocked.
+- Browsers installed via Snap/Flatpak use sandboxed paths/keyrings — install the native package or use `--browser firefox` / `--cookies FILE` instead.
+- Pass `--browser NAME` to skip auto-detection when you have multiple browsers installed.
+- For Chromium profiles other than `Default`, use `--browser chromium:ProfileName`.
+- Last-resort fallback: export cookies with a "Get cookies.txt" browser extension and pass `--cookies FILE`.
 
 ## How It Works
 

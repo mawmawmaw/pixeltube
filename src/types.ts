@@ -44,12 +44,25 @@ export interface Video {
 	channel: string
 	duration: string | number
 	durationFmt: string
+	views?: number
 }
 
 export interface Playlist {
 	id: string
 	title: string
 	videoCount: number | null
+}
+
+// Extra per-video metadata fetched lazily (one request per selected item) and
+// merged into the detail pane. Every field is optional — extraction may omit any.
+export interface VideoDetail {
+	channel?: string
+	uploadDate?: string // YYYYMMDD
+	timestamp?: number // unix seconds
+	likes?: number
+	subscribers?: number
+	views?: number
+	description?: string
 }
 
 export interface PlaylistContext {
@@ -147,7 +160,12 @@ export interface BrowseScreenState {
 	title: () => string
 	listView?: ListView | null
 	render?: () => void
+	// Screen-specific key handler. When set, it receives keys before the default
+	// list/back routing. Used by screens that aren't a plain ListView.
+	handleKey?: (key: string) => void
 	statusHint?: string
+	// "SEARCH_INPUT" marks a text-capturing screen so global shortcuts (e.g. "q"
+	// to quit) don't swallow typed characters.
 	type?: string
 }
 
@@ -183,6 +201,9 @@ export interface ListView {
 	getSelected<T>(): T
 	appendItems<T>(newItems: T[]): void
 	setHasMore(val: boolean): void
+	// True while the list is in type-to-filter mode (capturing typed text), so
+	// global shortcuts like "q" should not be treated as quit.
+	capturesText(): boolean
 }
 
 // --- Spinner ---
@@ -215,7 +236,15 @@ export interface Theme {
 // --- Search ---
 
 export type SearchResult =
-	| { resultType: "video"; id: string; title: string; channel: string; duration: string | number; durationFmt: string }
+	| {
+			resultType: "video"
+			id: string
+			title: string
+			channel: string
+			duration: string | number
+			durationFmt: string
+			views?: number
+	  }
 	| { resultType: "playlist"; id: string; title: string; videoCount: number | null }
 	| { resultType: "channel"; id: string; title: string }
 

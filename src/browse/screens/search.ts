@@ -1,9 +1,11 @@
-// Search screen with text input, filters, and result display
+// Search screen with text input, filters, and result display. The input/filter
+// view composes into the content-region buffer; results use a ListView.
 
 import type { BrowseState, Video, Playlist, PlaylistContext, SearchFilters, SearchResult } from "../../types.js"
-import { moveTo, clearLine, cols, rows, showCursor, hideCursor } from "../../tui/terminal.js"
-import { drawTitleBar, startSpinner, drawStatusBar, clearContent } from "../../tui/screen.js"
+import { hideCursor } from "../../tui/terminal.js"
+import { drawTitleBar, startSpinner, drawStatusBar, clearContent, contentScreen } from "../../tui/screen.js"
 import { createListView } from "../../tui/list-view.js"
+import { createTextInput } from "../../tui/components/text-input.js"
 import { search } from "../data.js"
 import { theme } from "../../tui/theme.js"
 import { formatSearchResult } from "../format.js"
@@ -25,13 +27,14 @@ export function createSearchScreen(
 	onSelectPlaylist: (playlist: Playlist) => void,
 	onSelectChannel: (id: string, title: string) => void,
 ) {
-	let searchBuffer = ""
 	let filterMode = false
 	let filterField = 0
-	let searchFilters: Record<string, string> = { sort: "relevance", duration: "any", type: "all" }
+	const searchFilters: Record<string, string> = { sort: "relevance", duration: "any", type: "all" }
+
+	const input = createTextInput({ label: `  ${BOLD}Search:${RESET} `, onRepaint: renderInput })
 
 	function show(): void {
-		searchBuffer = ""
+		input.clear()
 		filterMode = false
 
 		browseState.pushState({
@@ -40,37 +43,30 @@ export function createSearchScreen(
 			statusHint: " type query | enter: search | tab: filters | esc: back",
 			listView: null,
 			render: renderInput,
+			handleKey,
 		})
 	}
 
 	function renderInput(): void {
-		const r = Math.floor(rows() / 2)
-		const w = cols()
-		clearLine(r - 2)
-		clearLine(r - 1)
-		clearLine(r)
-		clearLine(r + 1)
-		clearLine(r + 2)
-		clearLine(r + 3)
-		clearLine(r + 4)
+		const buf = contentScreen()
+		buf.fill({ x: 0, y: 0, w: buf.width, h: buf.height }, " ", "")
+		buf.clearCursor()
 
-		moveTo(r, 1)
-		const prompt = `  ${BOLD}Search:${RESET} ${searchBuffer}${DIM}_${RESET}`
-		process.stdout.write(prompt.length > w + 20 ? prompt.slice(0, w) : prompt)
+		const midY = Math.floor(buf.height / 2)
+		input.render(buf, { x: 0, y: midY, w: buf.width, h: 1 }, !filterMode)
 
-		const fields = ["sort", "duration", "type"]
 		const labels = [`Sort: ${searchFilters.sort}`, `Duration: ${searchFilters.duration}`, `Type: ${searchFilters.type}`]
-		for (let i = 0; i < fields.length; i++) {
-			moveTo(r + 2 + i, 3)
+		for (let i = 0; i < labels.length; i++) {
+			const y = midY + 2 + i
 			if (filterMode && filterField === i) {
-				process.stdout.write(`${theme.accentBold}> ${labels[i]}${RESET}`)
+				buf.put(2, y, `${theme.accentBold}> ${labels[i]}${RESET}`)
 			} else {
-				process.stdout.write(`${DIM}  ${labels[i]}${RESET}`)
+				buf.put(2, y, `${DIM}  ${labels[i]}${RESET}`)
 			}
 		}
 
-		showCursor()
-		moveTo(r, 11 + searchBuffer.length)
+		buf.flush()
+		if (filterMode) hideCursor()
 	}
 
 	async function executeSearch(query: string): Promise<void> {
@@ -122,6 +118,7 @@ export function createSearchScreen(
 				},
 				onBack: () => browseState.popState(),
 				spacing: 1,
+				detail: true,
 			})
 
 			browseState.pushState({
@@ -161,14 +158,11 @@ export function createSearchScreen(
 			filterMode = true
 			filterField = 0
 			renderInput()
-		} else if (key === "enter" && searchBuffer.trim()) {
-			executeSearch(searchBuffer.trim())
-		} else if (key === "backspace") {
-			searchBuffer = searchBuffer.slice(0, -1)
-			renderInput()
-		} else if (key.length === 1) {
-			searchBuffer += key
-			renderInput()
+		} else if (key === "enter") {
+			const query = input.getValue().trim()
+			if (query) executeSearch(query)
+		} else {
+			input.handleKey(key)
 		}
 	}
 

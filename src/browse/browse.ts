@@ -1,6 +1,6 @@
 // Browse mode orchestrator — wires screens, state, and video selection
 
-import type { BrowseState, Video, PlaylistContext, VideoMeta, BrowseResult } from "../types.js"
+import type { BrowseState, BrowseScreenState, Video, PlaylistContext, VideoMeta, BrowseResult } from "../types.js"
 import { enterRawMode, setTitle, clearScreen } from "../tui/terminal.js"
 import { drawTitleBar, startSpinner, clearContent, drawStatusBar } from "../tui/screen.js"
 import {
@@ -19,6 +19,7 @@ import { createBrowseState } from "./state.js"
 import { createMainMenu } from "./screens/main-menu.js"
 import { showVideoList, showPlaylistList, showPlaylistVideos } from "./screens/video-list.js"
 import { createSearchScreen } from "./screens/search.js"
+import { createHelpScreen } from "./screens/help.js"
 
 export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseResult> {
 	const loggedIn = opts.loggedIn ?? true
@@ -119,30 +120,38 @@ export async function browse(opts: { loggedIn?: boolean } = {}): Promise<BrowseR
 	}
 
 	const mainMenu = createMainMenu(state, accountName, onMenuAction, { loggedIn })
+	const helpScreen = createHelpScreen(state)
+
+	// Route a single key to the active screen's handler, list, or default back.
+	function routeToScreen(cur: BrowseScreenState, key: string): void {
+		if (cur.handleKey) return cur.handleKey(key)
+		if (cur.listView) return cur.listView.handleKey(key)
+		if (key === "escape" || key === "left") state.popState()
+	}
 
 	state.setKeyHandler((key: string) => {
 		if (key === "ctrl-c") return state.result(null)
-		if (key === "q") return state.result(null)
 
 		const cur = state.currentState()
 		if (!cur) return state.result(null)
 
-		if (cur.render === mainMenu.draw) {
-			return mainMenu.handleKey(key)
-		}
+		// Help overlay: any key closes it; "?" opens it (when not typing).
+		if (cur.type === "HELP") return helpScreen.close()
 
-		if (cur.type === "SEARCH_INPUT") {
-			return searchScreen.handleKey(key)
-		}
+		const capturingText = cur.type === "SEARCH_INPUT" || cur.listView?.capturesText() === true
+		if (key === "?" && !capturingText) return helpScreen.open()
 
-		if (cur.listView) {
-			cur.listView.handleKey(key)
+		// Scroll wheel nudges the selection a few rows.
+		if (key === "scroll-up" || key === "scroll-down") {
+			const step = key === "scroll-up" ? "up" : "down"
+			for (let i = 0; i < 3; i++) routeToScreen(cur, step)
 			return
 		}
 
-		if (key === "escape" || key === "left") {
-			state.popState()
-		}
+		// "q" quits, except on screens capturing typed text (search, list filter).
+		if (key === "q" && !capturingText) return state.result(null)
+
+		routeToScreen(cur, key)
 	})
 
 	mainMenu.show()

@@ -10,18 +10,29 @@ export function checkTTY(): void {
 	}
 }
 
+// SGR mouse reporting (button events + wheel), used for scroll-wheel navigation.
+export function enableMouse(): void {
+	process.stdout.write("\x1b[?1000h\x1b[?1006h")
+}
+
+export function disableMouse(): void {
+	process.stdout.write("\x1b[?1000l\x1b[?1006l")
+}
+
 export function enterRawMode(): void {
 	if (!process.stdin.isTTY) return
 	process.stdin.setRawMode(true)
 	process.stdin.resume()
 	process.stdin.setEncoding("utf8")
 	enterAltScreen()
+	enableMouse()
 	hideCursor()
 	clearScreen()
 }
 
 export function exitRawMode(): void {
 	showCursor()
+	disableMouse()
 	exitAltScreen()
 	if (process.stdin.isTTY) process.stdin.setRawMode(false)
 	process.stdin.pause()
@@ -66,6 +77,15 @@ export function syncEnd(): void {
 
 export function parseKey(data: string): string | null {
 	if (data === "\x03") return "ctrl-c"
+	// SGR mouse: \x1b[<button;col;row(M|m). Map wheel up/down; ignore the rest.
+	if (data.startsWith("\x1b[<")) {
+		const m = /^\x1b\[<(\d+);\d+;\d+[Mm]$/.exec(data)
+		if (m) {
+			const b = Number(m[1])
+			if (b & 64) return b & 1 ? "scroll-down" : "scroll-up"
+		}
+		return null
+	}
 	if (data === "\x1b" || data === "\x1b\x1b") return "escape"
 	if (data === "\r") return "enter"
 	if (data === "\x7f" || data === "\b") return "backspace"
@@ -112,6 +132,7 @@ export function rows(): number {
 export function emergencyRestore(): void {
 	try {
 		resetStyle()
+		disableMouse()
 		showCursor()
 		exitAltScreen()
 		if (process.stdin.isTTY && process.stdin.isRaw) process.stdin.setRawMode(false)

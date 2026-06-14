@@ -44,6 +44,7 @@ export async function showVideoList(
 			onSelect: (video: Video, idx: number) => onSelect(video, { videos, index: idx }),
 			onBack: () => browseState.popState(),
 			spacing: 1,
+			detail: true,
 		})
 
 		browseState.pushState({
@@ -154,6 +155,7 @@ export async function showPlaylistVideos(
 			onSelect: (video: Video, idx: number) => onSelect(video, { videos: allVideos, index: idx }),
 			onBack: () => browseState.popState(),
 			spacing: 1,
+			detail: true,
 			hasMore: true,
 			onLoadMore: () => {
 				const start = nextStart

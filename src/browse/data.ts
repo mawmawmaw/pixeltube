@@ -1,6 +1,6 @@
 // YouTube data fetching via yt-dlp (playlists, subscriptions, search, etc.)
 
-import type { YtDlpClient, Video, Playlist, SearchFilters, SearchResult } from "../types.js"
+import type { YtDlpClient, Video, Playlist, VideoDetail, SearchFilters, SearchResult } from "../types.js"
 import { formatDuration } from "../utils/time.js"
 import { sanitize } from "../utils/sanitize.js"
 import { createClient } from "../ytdlp.js"
@@ -35,6 +35,11 @@ function clean(val: unknown): string {
 	return sanitize(String(val))
 }
 
+function toViews(val: unknown): number | undefined {
+	const n = Number(val)
+	return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 function enrichVideos(raw: string): Video[] {
 	return parseJsonLines(raw)
 		.map((d) => ({
@@ -43,6 +48,7 @@ function enrichVideos(raw: string): Video[] {
 			channel: clean(d.channel || d.uploader),
 			duration: (d.duration as string | number) || "",
 			durationFmt: formatDuration(d.duration as number),
+			views: toViews(d.view_count),
 		}))
 		.filter((v) => {
 			const t = v.title.toLowerCase()
@@ -99,6 +105,37 @@ export async function fetchPlaylistCount(playlistId: string): Promise<number | n
 		)
 		const n = Number(raw.split("\n")[0])
 		return isNaN(n) ? null : n
+	} catch {
+		return null
+	}
+}
+
+// Extra per-video metadata for the detail pane. Unlike the list fetches this
+// does a full (non-flat) extraction of a single watch page, so it's slow — it
+// runs lazily, one selected item at a time. Returns null on any failure.
+export async function fetchVideoDetail(videoId: string): Promise<VideoDetail | null> {
+	try {
+		const raw = await runYtDlp(
+			[
+				"--no-playlist",
+				"--print",
+				"%(.{channel,uploader,upload_date,timestamp,like_count,channel_follower_count,view_count,description})j",
+				`https://www.youtube.com/watch?v=${videoId}`,
+			],
+			{ timeout: 20000 },
+		)
+		const line = raw.split("\n").find(Boolean)
+		if (!line) return null
+		const d = JSON.parse(line) as Record<string, unknown>
+		return {
+			channel: clean(d.channel || d.uploader) || undefined,
+			uploadDate: clean(d.upload_date) || undefined,
+			timestamp: Number.isFinite(Number(d.timestamp)) ? Number(d.timestamp) : undefined,
+			likes: toViews(d.like_count),
+			subscribers: toViews(d.channel_follower_count),
+			views: toViews(d.view_count),
+			description: clean(d.description) || undefined,
+		}
 	} catch {
 		return null
 	}
@@ -193,6 +230,7 @@ function enrichSearchResults(raw: string): SearchResult[] {
 				channel: clean(d.channel || d.uploader),
 				duration: (d.duration as string | number) || "",
 				durationFmt: formatDuration(d.duration as number),
+				views: toViews(d.view_count),
 			}
 		})
 		.filter(Boolean) as SearchResult[]

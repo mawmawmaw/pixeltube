@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-vi.mock("../src/tui/terminal.js", () => ({
-	moveTo: vi.fn(),
-	cols: () => 80,
-	syncStart: vi.fn(),
-	syncEnd: vi.fn(),
-}))
-
 vi.mock("../src/tui/screen.js", () => ({
+	contentScreen: () => ({
+		width: 80,
+		height: 20,
+		fill: vi.fn(),
+		put: vi.fn(),
+		flush: vi.fn(),
+	}),
 	contentRows: () => 20,
 }))
 

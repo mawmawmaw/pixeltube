@@ -19,7 +19,7 @@ export function createBrowseState(): BrowseState {
 		if (!state) return
 		clearContent()
 		drawTitleBar(state.title())
-		drawStatusBar(state.statusHint || " arrows: navigate | enter/right: select | esc/left: back | q: quit")
+		drawStatusBar(state.statusHint || " arrows: navigate | enter/right: select | /: filter | ?: help | q: quit")
 		if (state.render) {
 			state.render()
 		} else if (state.listView) {

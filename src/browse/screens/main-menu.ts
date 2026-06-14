@@ -1,25 +1,16 @@
-// Main menu screen with responsive ASCII logo and menu items
+// Main menu screen with responsive ASCII logo and menu items. Composes into the
+// content-region buffer; item selection is handled by the Menu component.
 
-import type { BrowseState, BrowseScreenState } from "../../types.js"
-import { moveTo, cols, rows, syncStart, syncEnd } from "../../tui/terminal.js"
-import { contentRows } from "../../tui/screen.js"
+import type { BrowseState } from "../../types.js"
+import { moveTo, cols, rows } from "../../tui/terminal.js"
+import { contentScreen } from "../../tui/screen.js"
 import { theme } from "../../tui/theme.js"
+import { displayWidth, truncate } from "../../tui/width.js"
+import { createMenu, type MenuItem } from "../../tui/components/menu.js"
 import { getUpdateNotice } from "../../cli/update-check.js"
 
-const DIM = theme.dim
-const BOLD = theme.bold
 const RESET = theme.reset
-
-interface MenuItem {
-	label: string
-	desc: string
-	action: string
-}
-
-interface MenuScreenState extends BrowseScreenState {
-	selectedIdx: number
-	_menuItems?: MenuItem[]
-}
+const DIM = theme.dim
 
 const MENU_ITEMS: MenuItem[] = [
 	{ label: "Recommendations", desc: "Videos picked for you", action: "recommendations" },
@@ -58,22 +49,12 @@ const MEDIUM_LOGO = [
 
 const SMALL_LOGO = [`  ▘    ▜ ▗   ▌   `, `▛▌▌▚▘█▌▐ ▜▘▌▌▛▌█▌`, `▙▌▌▞▖▙▖▐▖▐▖▙▌▙▌▙▖`, `▌                `]
 
-function getLayout(r: number, w: number): { logo: string; spacing: number } {
-	const totalRows = r + 2
+function getLayout(totalRows: number, w: number): { logo: string; spacing: number } {
 	if (totalRows >= 25 && w >= 85) return { logo: "large", spacing: 1 }
 	if (totalRows >= 21 && w >= 85) return { logo: "large", spacing: 0 }
 	if (totalRows >= 19 && w >= 48) return { logo: "medium", spacing: 0 }
 	if (totalRows >= 13 && w >= 22) return { logo: "small", spacing: 0 }
 	return { logo: "text", spacing: 0 }
-}
-
-function drawLogo(logoLines: string[], logoWidth: number, r: number, w: number, menuLines: number): number {
-	const logoStart = Math.max(2, Math.floor((r - logoLines.length - 1 - menuLines) / 2) + 1)
-	for (let i = 0; i < logoLines.length; i++) {
-		moveTo(logoStart + i, Math.max(1, Math.floor((w - logoWidth) / 2)))
-		process.stdout.write(`${theme.accentBold}${logoLines[i]}${RESET}`)
-	}
-	return logoStart + logoLines.length + 1
 }
 
 export function createMainMenu(
@@ -83,104 +64,92 @@ export function createMainMenu(
 	opts: { loggedIn?: boolean } = {},
 ) {
 	const loggedIn = opts.loggedIn ?? true
+	const items = loggedIn ? MENU_ITEMS : MENU_ITEMS.filter((item) => item.action === "search")
 
-	function getMenuItems(): MenuItem[] {
-		if (!loggedIn) return MENU_ITEMS.filter((item) => item.action === "search")
-		return MENU_ITEMS
-	}
+	const menu = createMenu({
+		items,
+		onSelect: (item) => {
+			if (item.action) onAction(item.action)
+		},
+		onBack: () => browseState.result(null),
+		onRepaint: draw,
+	})
 
 	function show(): void {
 		browseState.pushState({
 			title: () => (accountName ? `PixelTube [${accountName}]` : "PixelTube"),
-			statusHint: " arrows: navigate | enter/right: select | q: quit",
+			statusHint: " arrows: navigate | enter/right: select | ?: help | q: quit",
 			listView: null,
 			render: draw,
-			selectedIdx: 0,
-		} as MenuScreenState)
+			handleKey,
+		})
+	}
+
+	function drawLogoLines(
+		buf: ReturnType<typeof contentScreen>,
+		lines: string[],
+		logoWidth: number,
+		startY: number,
+		w: number,
+	): void {
+		const x = Math.max(0, Math.floor((w - logoWidth) / 2))
+		for (let i = 0; i < lines.length; i++) {
+			buf.put(x, startY + i, `${theme.accentBold}${lines[i]}${RESET}`)
+		}
 	}
 
 	function draw(): void {
-		const w = cols()
-		const r = contentRows()
-		const state = browseState.currentState() as MenuScreenState
-		const items = getMenuItems()
+		const buf = contentScreen()
+		const w = buf.width
+		const h = buf.height
+		buf.fill({ x: 0, y: 0, w, h }, " ", "")
 
-		syncStart()
-
-		const { logo: logoMode, spacing } = getLayout(r, w)
+		const { logo: logoMode, spacing } = getLayout(h + 2, w)
 		const menuLines = items.length * (spacing + 1)
-		let menuStart: number
 
-		if (logoMode === "large") {
-			menuStart = drawLogo(LARGE_LOGO, 83, r, w, menuLines)
-		} else if (logoMode === "medium") {
-			menuStart = drawLogo(MEDIUM_LOGO, 47, r, w, menuLines)
-		} else if (logoMode === "small") {
-			menuStart = drawLogo(SMALL_LOGO, 18, r, w, menuLines)
+		let menuStartY: number
+		if (logoMode === "large" || logoMode === "medium" || logoMode === "small") {
+			const lines = logoMode === "large" ? LARGE_LOGO : logoMode === "medium" ? MEDIUM_LOGO : SMALL_LOGO
+			const logoWidth = logoMode === "large" ? 83 : logoMode === "medium" ? 47 : 18
+			const block = lines.length + 1 + menuLines
+			const logoStartY = Math.max(0, Math.floor((h - block) / 2))
+			drawLogoLines(buf, lines, logoWidth, logoStartY, w)
+			menuStartY = logoStartY + lines.length + 1
 		} else {
-			const titleText = `${theme.logoYellow}PixelTube${RESET}`
-			const titleStart = Math.max(2, Math.floor((r - 2 - menuLines) / 2) + 1)
-			moveTo(titleStart, Math.floor((w - 9) / 2))
-			process.stdout.write(titleText)
-			menuStart = titleStart + 2
+			const titleStartY = Math.max(0, Math.floor((h - 2 - menuLines) / 2))
+			buf.put(Math.floor((w - 9) / 2), titleStartY, `${theme.logoYellow}PixelTube${RESET}`)
+			menuStartY = titleStartY + 2
 		}
 
-		const menuWidth = Math.min(50, w - 4)
-		const indent = Math.floor((w - menuWidth) / 2)
+		menu.render(buf, { x: 0, y: menuStartY, w, h: h - menuStartY }, true)
 
-		for (let i = 0; i < items.length; i++) {
-			const item = items[i]
-			const y = menuStart + i * (spacing + 1)
-			const arrow = i === state.selectedIdx ? `${theme.selArrow}>` : " "
-			const line = `  ${arrow}${RESET}  ${BOLD}${item.label}${RESET}  ${DIM}${item.desc}${RESET}`
-			const visLen = item.label.length + item.desc.length + 7
-			const pad = Math.max(0, menuWidth - visLen)
-
-			moveTo(y, indent)
-			if (i === state.selectedIdx) {
-				process.stdout.write(`${theme.selBg}${line}${" ".repeat(pad)}${RESET}`)
-			} else {
-				process.stdout.write(line)
-			}
-		}
-
+		// Update notice occupies the last content row; otherwise show the account.
 		const notice = getUpdateNotice()
 		if (notice) {
-			const truncNotice = notice.length > w - 2 ? notice.slice(0, w - 5) + "..." : notice
-			const noticePad = Math.max(0, Math.floor((w - truncNotice.length) / 2))
-			moveTo(rows() - 1, 1)
-			process.stdout.write(`\x1b[2K${" ".repeat(noticePad)}${theme.accentBold}${truncNotice}${RESET}`)
-		} else if (accountName) {
+			const trunc = truncate(notice, w)
+			const pad = Math.max(0, Math.floor((w - displayWidth(trunc)) / 2))
+			buf.put(pad, h - 1, `${theme.accentBold}${trunc}${RESET}`)
+		}
+
+		buf.flush()
+
+		// Account name is drawn on the status row (outside the content buffer),
+		// matching the original right-aligned placement.
+		if (!notice && accountName) {
 			const acctText = `Logged in as ${accountName} `
-			const statusHintLen = 52
-			if (w > statusHintLen + acctText.length) {
-				moveTo(rows(), w - acctText.length)
+			const tw = cols()
+			if (tw > 52 + acctText.length) {
+				moveTo(rows(), tw - acctText.length)
 				process.stdout.write(`${DIM}${acctText}${RESET}`)
-			} else if (w > acctText.length + 2) {
-				moveTo(rows() - 1, w - acctText.length)
+			} else if (tw > acctText.length + 2) {
+				moveTo(rows() - 1, tw - acctText.length)
 				process.stdout.write(`${DIM}${acctText}${RESET}`)
 			}
 		}
-
-		syncEnd()
-		state._menuItems = items
 	}
 
 	function handleKey(key: string): void {
-		const state = browseState.currentState() as MenuScreenState
-		const items = state._menuItems || getMenuItems()
-		if (key === "up") {
-			if (state.selectedIdx > 0) state.selectedIdx--
-			draw()
-		} else if (key === "down") {
-			if (state.selectedIdx < items.length - 1) state.selectedIdx++
-			draw()
-		} else if (key === "enter" || key === "right") {
-			const item = items[state.selectedIdx]
-			if (item) onAction(item.action)
-		} else if (key === "escape" || key === "left") {
-			browseState.result(null)
-		}
+		menu.handleKey(key)
 	}
 
 	return { show, draw, handleKey }

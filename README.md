@@ -23,19 +23,42 @@ Pixeltube lets you link your Youtube account using cookies and browse your subsc
 [![yt--dlp](https://img.shields.io/badge/yt--dlp-required-red?logo=youtube&logoColor=white)](https://github.com/yt-dlp/yt-dlp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+<p align="center">
+  <img src=".github/assets/playback.gif" alt="Pixeltube playing a video as truecolor pixel art in the terminal" width="760">
+</p>
+
+---
+
+## Screenshots
+
+### Browse with a live preview pane
+
+A two-pane browser: your list on the left, a live preview on the right with a pixel-art thumbnail and rich metadata — channel, subscribers, views, likes, upload date, and description — fetched on demand for the selected item.
+
+![Two-pane browse with a rich detail pane](.github/assets/browse-detail.png)
+
+### Main menu
+
+Jump straight into your recommendations, subscriptions, playlists, history, or search.
+
+![Pixeltube main menu](.github/assets/menu.png)
+
 ---
 
 ## Features
 
 - **Terminal video playback** — renders video frames as colored Unicode half-blocks with 24-bit truecolor
 - **YouTube integration** — browse recommendations, subscriptions, playlists, history, and search (no login required for search)
+- **Two-pane browse with live preview** — list on the left, a preview pane on the right showing a pixel-art thumbnail of the selected item
+- **Rich detail pane** — channel & subscriber count, views, likes, upload date, and description, fetched on demand for the highlighted video
+- **Type-to-filter** — press `/` to instantly filter any list
 - **Audio playback** — synced audio via ffplay, with mute toggle
 - **Player controls** — pause/play, rewind/forward, next/prev track, subtitles
 - **Continuous playlist playback** — auto-advances through playlists with next/prev support
 - **Subtitles** — auto-downloads and overlays English subtitles
 - **Search with filters** — sort by date/views/rating, filter by duration and type (videos, playlists, channels)
 - **Update notifications** — checks for new versions and shows the appropriate update command
-- **Responsive UI** — adapts to terminal size with multiple layout tiers
+- **Responsive UI** — two-pane layout on wide terminals, gracefully collapsing to a single column on narrow ones
 - **Theme aware** — detects dark/light terminal themes
 - **256-color fallback** — works on terminals without truecolor support
 
@@ -147,7 +170,9 @@ All player controls are case-insensitive.
 | `Up` / `Down`     | Navigate list                                |
 | `Enter` / `Right` | Select (plays video, opens playlist/channel) |
 | `Esc` / `Left`    | Go back                                      |
+| `/`               | Filter the current list                      |
 | `Tab`             | Search filters (sort, duration, type)        |
+| `?`               | Toggle keyboard-shortcuts help               |
 | `Q`               | Quit                                         |
 
 ## Authentication

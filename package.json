@@ -1,6 +1,6 @@
 {
 	"name": "pixeltube",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Play videos in the terminal as colored pixel art",
 	"license": "MIT",
 	"author": "Mauricio Garcia de Ceca Garcia (0xMaw - maw.dev)",

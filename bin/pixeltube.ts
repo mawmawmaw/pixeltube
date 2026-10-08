@@ -124,4 +124,4 @@ if (isURL) {
 const notice = getUpdateNotice()
 if (notice) console.error(`\n  ${notice}\n`)
 
-process.exit(0)
+process.exit()

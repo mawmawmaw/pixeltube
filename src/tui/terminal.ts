@@ -38,12 +38,21 @@ export function exitRawMode(): void {
 	process.stdin.pause()
 }
 
+// Tracked so a redundant exit (e.g. emergencyRestore on process exit) doesn't
+// emit ?1049l again — terminals treat that as "restore saved cursor" and jump
+// back up, overwriting anything printed since the alt screen was left.
+let inAltScreen = false
+
 export function enterAltScreen(): void {
-	if (altScreen) process.stdout.write("\x1b[?1049h")
+	if (!altScreen) return
+	process.stdout.write("\x1b[?1049h")
+	inAltScreen = true
 }
 
 export function exitAltScreen(): void {
-	if (altScreen) process.stdout.write("\x1b[?1049l")
+	if (!altScreen || !inAltScreen) return
+	process.stdout.write("\x1b[?1049l")
+	inAltScreen = false
 }
 
 export function showCursor(): void {

@@ -279,5 +279,6 @@ export async function play(
 	}
 
 	cleanup()
+	if (exitReason === "done" && decoder.error) throw new Error(decoder.error)
 	return exitReason
 }

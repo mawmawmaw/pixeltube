@@ -28,6 +28,67 @@ function checkFfmpeg(): void {
 	}
 }
 
+function ytDlpInstallHint(): string {
+	if (process.platform === "darwin") return "brew install yt-dlp"
+	if (process.platform === "win32") return "winget install yt-dlp"
+	return "pipx install yt-dlp (distro packages are often too old for YouTube) — see https://github.com/yt-dlp/yt-dlp#installation"
+}
+
+// YouTube features (browse, search, URLs, login) shell out to yt-dlp; local
+// files only need ffmpeg, so this is checked per command rather than globally.
+let ytDlpChecked = false
+
+function checkYtDlp(): void {
+	if (ytDlpChecked) return
+	try {
+		execFileSync("yt-dlp", ["--version"], { stdio: "ignore" })
+		ytDlpChecked = true
+	} catch {
+		console.error(`yt-dlp not found. Install it with ${ytDlpInstallHint()}.`)
+		process.exit(1)
+	}
+}
+
+function errorHint(message: string): string {
+	if (/403|forbidden/i.test(message)) {
+		return "YouTube rejected the stream — yt-dlp is likely outdated. Update it (brew upgrade yt-dlp / yt-dlp -U)."
+	}
+	return ""
+}
+
+// Shows why a video could not play and waits for a key. Resolves true if the
+// user wants to keep going (next video), false to stop (Esc / q / Ctrl-C).
+async function showPlaybackError(title: string | undefined, err: unknown): Promise<boolean> {
+	const message = (err as Error)?.message || "unavailable"
+	const { drawTitleBar, drawStatusBar } = await import("../tui/screen.js")
+	const { theme } = await import("../tui/theme.js")
+	const { moveTo, cols, rows, onKey } = await import("../tui/terminal.js")
+	const { truncate } = await import("../tui/width.js")
+	showLoading()
+	drawTitleBar("PixelTube > Playback failed")
+	const w = cols()
+	const lines = [`Could not play${title ? ` "${title}"` : ""}`, message, errorHint(message)].filter(Boolean)
+	const top = Math.max(2, Math.floor(rows() / 2) - 1)
+	lines.forEach((line, i) => {
+		moveTo(top + i, 3)
+		process.stdout.write(`${i === 0 ? theme.bold : theme.dim}${truncate(line, w - 4)}${theme.reset}`)
+	})
+	drawStatusBar("any key: continue · esc/q: back")
+	const wasRaw = process.stdin.isRaw
+	if (process.stdin.isTTY) process.stdin.setRawMode(true)
+	process.stdin.resume()
+	process.stdin.setEncoding("utf8")
+	const proceed = await new Promise<boolean>((resolve) => {
+		const off = onKey((key) => {
+			off()
+			resolve(!(key === "escape" || key === "q" || key === "ctrl-c" || key === "left"))
+		})
+	})
+	if (process.stdin.isTTY) process.stdin.setRawMode(wasRaw)
+	hideLoading()
+	return proceed
+}
+
 function showLoading(): void {
 	enterAltScreen()
 	hideCursor()
@@ -66,12 +127,15 @@ async function playVideo(url: string, opts: PlayVideoOptions = {}): Promise<Exit
 	if (!info.channel && meta.channel) info.channel = meta.channel
 	const duration = meta.duration || info.duration || 0
 	const playlist = opts.playlist || null
-	const exitReason = await play(decoder, width, height, fps, { info, duration, playlist })
-	if (cleanup) cleanup()
-	return exitReason
+	try {
+		return await play(decoder, width, height, fps, { info, duration, playlist })
+	} finally {
+		if (cleanup) cleanup()
+	}
 }
 
 export async function cmdLogin(ytdlp: YtDlpClient, cookieArgs: string[]): Promise<void> {
+	checkYtDlp()
 	const { verifyLogin } = await import("../login.js")
 	const ok = await verifyLogin(ytdlp, cookieArgs)
 	if (!ok) process.exit(1)
@@ -81,6 +145,7 @@ export async function cmdLogin(ytdlp: YtDlpClient, cookieArgs: string[]): Promis
 
 export async function cmdBrowse(ytdlp: YtDlpClient, opts: { loggedIn?: boolean } = {}): Promise<void> {
 	checkFfmpeg()
+	checkYtDlp()
 
 	const { setClient: setBrowseClient } = await import("../browse/data.js")
 	setBrowseClient(ytdlp)
@@ -117,12 +182,9 @@ export async function cmdBrowse(ytdlp: YtDlpClient, opts: { loggedIn?: boolean }
 					exitReason = await playVideo(url, { info })
 				}
 			} catch (err) {
-				console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
-				if (playlist && playlistIdx < playlist.videos.length - 1) {
-					exitReason = "next"
-				} else {
-					exitReason = "back"
-				}
+				if (cleanup) cleanup()
+				const proceed = await showPlaybackError(info.title, err)
+				exitReason = proceed && playlist && playlistIdx < playlist.videos.length - 1 ? "next" : "back"
 			}
 
 			if (exitReason === "quit") return
@@ -161,7 +223,7 @@ export async function cmdBrowse(ytdlp: YtDlpClient, opts: { loggedIn?: boolean }
 				} catch (err) {
 					spinner.stop()
 					hideLoading()
-					console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
+					if (!(await showPlaybackError(nextVideo.title, err))) break
 					if (nextIdx < playlist.videos.length - 1) {
 						playlistIdx++
 						continue
@@ -180,6 +242,7 @@ export async function cmdBrowse(ytdlp: YtDlpClient, opts: { loggedIn?: boolean }
 
 export async function cmdDefaultBrowse(ytdlp: YtDlpClient, cookieArgs: string[]): Promise<void> {
 	checkFfmpeg()
+	checkYtDlp()
 	const { isLoggedIn } = await import("../login.js")
 
 	showLoading()
@@ -201,6 +264,7 @@ export async function cmdDefaultBrowse(ytdlp: YtDlpClient, cookieArgs: string[])
 
 export async function cmdPlayUrl(input: string, options: PlayVideoOptions): Promise<void> {
 	checkFfmpeg()
+	checkYtDlp()
 
 	const isPlaylistUrl = input.includes("playlist?list=") || input.includes("&list=")
 
@@ -243,7 +307,7 @@ export async function cmdPlayUrl(input: string, options: PlayVideoOptions): Prom
 						playlist: { videos, index: playlistIdx },
 					})
 				} catch (err) {
-					console.warn(`Skipping video: ${(err as Error).message || "unavailable"}`)
+					if (!(await showPlaybackError(video.title, err))) break
 					playlistIdx++
 					continue
 				}
@@ -261,20 +325,27 @@ export async function cmdPlayUrl(input: string, options: PlayVideoOptions): Prom
 		return
 	}
 
-	await playVideo(input, {
-		fps: options.fps,
-		width: options.width,
-		download: options.download,
-		audio: options.audio,
-	})
+	await playSingle(input, options)
+}
+
+async function playSingle(input: string, options: PlayVideoOptions): Promise<void> {
+	try {
+		await playVideo(input, {
+			fps: options.fps,
+			width: options.width,
+			download: options.download,
+			audio: options.audio,
+		})
+	} catch (err) {
+		const message = (err as Error)?.message || "unavailable"
+		console.error(`Playback failed: ${message}`)
+		const hint = errorHint(message)
+		if (hint) console.error(hint)
+		process.exitCode = 1
+	}
 }
 
 export async function cmdPlayFile(input: string, options: PlayVideoOptions): Promise<void> {
 	checkFfmpeg()
-	await playVideo(input, {
-		fps: options.fps,
-		width: options.width,
-		download: options.download,
-		audio: options.audio,
-	})
+	await playSingle(input, options)
 }

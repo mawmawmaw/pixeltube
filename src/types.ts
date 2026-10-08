@@ -105,6 +105,8 @@ export interface Decoder {
 	audio: boolean
 	frames: { readonly length: number }
 	readonly done: boolean
+	/** Set when ffmpeg failed before producing any frame (input could not be opened). */
+	readonly error: string | null
 	waitForFrame(): Promise<void>
 	consumeFrame(): Buffer | undefined
 	flushFrames(): void

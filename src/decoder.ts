@@ -95,7 +95,7 @@ export function createDecoder(
 			"-sws_flags",
 			"neighbor",
 			"-v",
-			"quiet",
+			"error",
 			"pipe:1",
 		],
 		{ stdio: ["ignore", "pipe", "pipe"] },
@@ -151,6 +151,8 @@ export function createDecoder(
 	}
 
 	let done: boolean = false
+	let error: string | null = null
+	let framesDecoded = 0
 	let streamPaused: boolean = false
 	let onFrame: (() => void) | null = null
 
@@ -182,6 +184,7 @@ export function createDecoder(
 			readOffset += frameSize
 
 			ringPush(frame)
+			framesDecoded++
 			if (onFrame) {
 				const cb = onFrame
 				onFrame = null
@@ -203,8 +206,12 @@ export function createDecoder(
 	})
 
 	ffmpeg.on("close", (code: number | null) => {
-		if (code !== 0 && frames.length === 0) {
-			process.stderr.write(`\x1b[0m\nffmpeg exited with code ${code}\n${stderrBuf}\n`)
+		// Failing before the first frame means the input never opened (e.g. HTTP 403
+		// on an expired/rejected stream URL); surface it instead of looking "finished".
+		// A null code means we killed it ourselves (seek/resize/quit), not a failure.
+		if (code !== null && code !== 0 && framesDecoded === 0) {
+			const lines = stderrBuf.trim().split("\n").filter(Boolean)
+			error = lines.at(-1) || `ffmpeg exited with code ${code}`
 		}
 		done = true
 		if (onFrame) {
@@ -223,6 +230,9 @@ export function createDecoder(
 		frames,
 		get done() {
 			return done && frames.length === 0
+		},
+		get error() {
+			return error
 		},
 		waitForFrame() {
 			if (frames.length > 0 || done) return Promise.resolve()

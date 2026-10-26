@@ -51,7 +51,7 @@ function checkYtDlp(): void {
 
 function errorHint(message: string): string {
 	if (/403|forbidden/i.test(message)) {
-		return "YouTube rejected the stream — yt-dlp is likely outdated. Update it (brew upgrade yt-dlp / yt-dlp -U)."
+		return "YouTube rejected the stream. If this keeps happening, update yt-dlp (brew upgrade yt-dlp / yt-dlp -U)."
 	}
 	return ""
 }
